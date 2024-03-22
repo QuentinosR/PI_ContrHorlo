@@ -8,15 +8,15 @@
 
 
 //-- Trigger --
-int tTrigMs = 100;
-int tTcMS = 1;
+int tTrigUs = 200;
+int tTcUs = 20;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 struct repeating_timer timerTrig;
 
 //-- Led flashs --
-int tLedMs = 2; 
-int tFlashPeriod = 10;  //If tLi/i+1 = tLn/n+1
+int tLedUs = 10; 
+int tFlashPeriod = 20;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
 int ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
 //   For state machine
@@ -48,11 +48,11 @@ int init(){
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
     for(int i = 0; i < NB_LED_FLASHS; i++){
-        ledTimes[i][0] = tFlashPeriod - tLedMs; //For the moment same value. 
-        ledTimes[i][1] = tLedMs;
+        ledTimes[i][0] = tFlashPeriod - tLedUs; //For the moment same value. 
+        ledTimes[i][1] = tLedUs;
     }
 
-    if(!add_repeating_timer_ms(1000, timer_trig_callback, NULL, &timerTrig)) { //arbitrary time
+    if(!add_repeating_timer_us(1000, timer_trig_callback, NULL, &timerTrig)) { //arbitrary time
         printf("Error: Failed to setup the timerTrig for trigger");
         return 1;
     }
@@ -60,7 +60,7 @@ int init(){
 }
 
 //Two states : OFF and ON
-// <-tTcMS->
+// <-tTcUs->
 //<------------tTrigMS-------->
 //__________                   __________
 //|        |___________________|        |__...
@@ -70,10 +70,10 @@ void trig_SM_process(){
         trigOutputState = !trigOutputState; //Begin by changing state
         if(trigOutputState)
             startFlash = true;
-        int stateDuration = trigOutputState ? tTcMS : tTrigMs - tTcMS;
+        int stateDuration = trigOutputState ? tTcUs : tTrigUs - tTcUs;
         // Reset the timerTrig with the updated delay
         cancel_repeating_timer(&timerTrig);
-        add_repeating_timer_ms(stateDuration, timer_trig_callback, NULL, &timerTrig);
+        add_repeating_timer_us(stateDuration, timer_trig_callback, NULL, &timerTrig);
         gpio_put(TRIG_PIN, trigOutputState);
     }
 }
@@ -104,7 +104,7 @@ void flash_SM_process(){
         }
 
         cancel_repeating_timer(&timerFlash);
-        add_repeating_timer_ms(ledTimes[iCurrLedFlash][stateInt], timer_flash_callback, NULL, &timerFlash);
+        add_repeating_timer_us(ledTimes[iCurrLedFlash][stateInt], timer_flash_callback, NULL, &timerFlash);
         gpio_put(LED_PIN, currLedFlashState);
     }
     //printf("blip!\n");
@@ -114,7 +114,7 @@ int main()
 {
     init();
     while(1){
-        tight_loop_contents();
+        //tight_loop_contents();
         trig_SM_process();
         flash_SM_process();
     }
