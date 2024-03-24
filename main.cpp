@@ -55,7 +55,8 @@ typedef enum led_cmd_t{
     LED_PERIOD_INC,
     LED_PERIOD_DEC,
     LED_ON_INC,
-    LED_ON_DEC
+    LED_ON_DEC,
+    LED_NB_CMDS
 
 } led_cmd_t;
 
@@ -80,11 +81,11 @@ int tTrigOff = tTrigUs - tTcUs;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 volatile uint32_t timerHwTrigVal = get_hw_timer_val();
-volatile trigger_cmd_t trig_cmd = TGR_NONE;
+volatile trigger_cmd_t trigCmd = TGR_NONE;
 
 //-- Led flashs --
-int tLedUs = 10; 
-int tFlashPeriod = 20;  //If tLi/i+1 = tLn/n+1
+int tLedUs = 5; 
+int tFlashPeriod = 10;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
 uint32_t ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
 //   For state machine
@@ -92,10 +93,26 @@ int iCurrLedFlash = 0;
 bool currLedFlashState = false;
 bool startFlash = false;
 volatile uint32_t timerHwFlashVal = 0;
+volatile led_cmd_t ledCmd = LED_NONE;
 
 
 void cmd_handle(char c){
-    printf("char received: %c\n", c);
+    for(uint8_t i = 0; i < TGR_NB_CMDS; i++){
+        if(trigger_cmd_txt[i] == c){
+            trigCmd = (trigger_cmd_t) i;
+            printf("trigger cmd : %u\n", trigCmd);
+            return;
+        }
+    }
+
+    for(uint8_t i = 0; i < LED_NB_CMDS; i++){
+        led_cmd_t cmd = (led_cmd_t) i;
+        if(led_cmd_txt[i] == c){
+            ledCmd = (led_cmd_t) i;
+            printf("led cmd : %u\n", ledCmd);
+            return;
+        }
+    }
     //uart_putc(UART_ID, c);
 }
 
@@ -191,9 +208,11 @@ int init(){
     
     gpio_init(TRIG_PIN);
     gpio_set_dir(TRIG_PIN, GPIO_OUT);
+    gpio_put(TRIG_PIN, 0);
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 0);
     printf("begin\n");
 
     init_uart();
@@ -202,8 +221,6 @@ int init(){
         ledTimes[i][0] = tFlashPeriod - tLedUs; //For the moment same value. 
         ledTimes[i][1] = tLedUs;
     }
-
-    alarm_in_us(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback,timerHwTrigVal, 1000);
     return 0;
 }
 
@@ -213,6 +230,18 @@ int init(){
 //__________                   __________
 //|        |___________________|        |__...
 void trig_SM_process(){
+    if(trigCmd != TGR_NONE){ //Command to handle
+        switch(trigCmd){
+            case TGR_START:
+                timer_trig_callback();
+                break;
+            default:
+                break;
+        }
+        trigCmd = TGR_NONE; //Cmd only for one action
+
+    }
+
     if(timTrigElapsedFlag){
         timTrigElapsedFlag = false; //reset flag
         trigOutputState = !trigOutputState; //Begin by changing state
