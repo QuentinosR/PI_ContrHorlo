@@ -1,8 +1,8 @@
-//Regarder pour faire tourner sur deuxième core le UART et voir les incidences.
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
 #include "hardware/irq.h"
+#include "hardware/uart.h"
 
 #define ALARM_TRIG_NUM 0
 #define ALARM_TRIG_IRQ TIMER_IRQ_0
@@ -13,19 +13,28 @@
 #define LED_PIN       15
 #define NB_LED_FLASHS 3
 
-#include "hardware/uart.h"
-/// \tag::uart_advanced[]
-
 #define UART_ID uart0
 #define BAUD_RATE 115200
 #define DATA_BITS 8
 #define STOP_BITS 1
 #define PARITY    UART_PARITY_NONE
-
-// We are using pins 0 and 1, but see the GPIO function select table in the
-// datasheet for information on which other pins can be used.
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
+
+#define USE_TESTING_MODE 1
+#define AUTO_START 0
+
+#if USE_TESTING_MODE
+#define TIME_T_TRIG_PERIOD_US 100
+#define TIME_T_TRIG_ON_US 20
+#define TIME_T_FLASH_ON_US 5
+#define TIME_T_FLASH_PERIOD_US 10
+#else
+#define TIME_T_TRIG_PERIOD_US 100000
+#define TIME_T_TRIG_ON_US 2000
+#define TIME_T_FLASH_ON_US 1000
+#define TIME_T_FLASH_PERIOD_US 10000
+#endif
 
 typedef enum trigger_cmd_t{
     TGR_NONE = 0,
@@ -74,18 +83,18 @@ static uint32_t get_hw_timer_val(){
 }
 
 //-- Trigger --
-int tTrigUs = 100;
-int tTcUs = 20;
+int tTrigUs = TIME_T_TRIG_PERIOD_US;
+int tTcUs = TIME_T_TRIG_ON_US;
 int tTrigOn = tTcUs;
 int tTrigOff = tTrigUs - tTcUs;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 volatile uint32_t timerHwTrigVal = get_hw_timer_val();
-volatile trigger_cmd_t trigCmd = TGR_NONE;
+volatile trigger_cmd_t trigCmd = AUTO_START ? TGR_START : TGR_NONE;
 
 //-- Led flashs --
-int tLedUs = 5; 
-int tFlashPeriod = 10;  //If tLi/i+1 = tLn/n+1
+int tLedUs = TIME_T_FLASH_ON_US; 
+int tFlashPeriod = TIME_T_FLASH_PERIOD_US;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
 uint32_t ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
 //   For state machine
