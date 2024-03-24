@@ -1,3 +1,4 @@
+//Regarder pour faire tourner sur deuxième core le UART et voir les incidences.
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
@@ -26,23 +27,46 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-static int chars_rxed = 0;
+typedef enum trigger_cmd_t{
+    TGR_NONE = 0,
+    TGR_START,
+    TGR_STOP,
+    TGR_PERIOD_INC, //Increase the period by one step
+    TGR_PERIOD_DEC, //Decrease the period by one step
+    TGR_PERIOD_DEC_ONE,  //Decrease the period by one step for one period only
+    TGR_PERIODE_INC_ONE,  //Increase the period by one step for one period only
+    TGR_NB_CMDS
+
+} trigger_cmd_t;
+
+const char trigger_cmd_txt[TGR_NB_CMDS]{
+    'X',
+    's',
+    'e',
+    'i',
+    'd',
+    'a',
+    'r',
+
+};
+
+typedef enum led_cmd_t{
+    LED_NONE = 0,
+    LED_PERIOD_INC,
+    LED_PERIOD_DEC,
+    LED_ON_INC,
+    LED_ON_DEC
+
+} led_cmd_t;
 
 
-// RX interrupt handler
-void on_uart_rx() {
-    while (uart_is_readable(UART_ID)) {
-        uint8_t ch = uart_getc(UART_ID);
-        // Can we send it back?
-        if (uart_is_writable(UART_ID)) {
-            // Change it slightly first!
-            ch++;
-            uart_putc(UART_ID, ch);
-        }
-        chars_rxed++;
-    }
-}
-
+const char led_cmd_txt[TGR_NB_CMDS]{
+    'X',
+    'y',
+    'z',
+    'o',
+    'f'
+};
 
 static uint32_t get_hw_timer_val(){
     return timer_hw->timerawl;
@@ -56,6 +80,7 @@ int tTrigOff = tTrigUs - tTcUs;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 volatile uint32_t timerHwTrigVal = get_hw_timer_val();
+volatile trigger_cmd_t trig_cmd = TGR_NONE;
 
 //-- Led flashs --
 int tLedUs = 10; 
@@ -68,12 +93,30 @@ bool currLedFlashState = false;
 bool startFlash = false;
 volatile uint32_t timerHwFlashVal = 0;
 
+
+void cmd_handle(char c){
+    printf("char received: %c\n", c);
+    //uart_putc(UART_ID, c);
+}
+
+// RX interrupt handler
+void on_uart_rx() {
+    while (uart_is_readable(UART_ID)) {
+        uint8_t c = uart_getc(UART_ID);
+        // Can we send it back?
+        if (uart_is_writable(UART_ID)) {
+            cmd_handle(c);
+            
+            //uart_putc(UART_ID, c);
+        }
+    }
+}
+
 static void timer_trig_callback(void) {
     timerHwTrigVal = get_hw_timer_val();
     // Clear the alarm irq
     hw_clear_bits(&timer_hw->intr, 1u << ALARM_TRIG_NUM);
     timTrigElapsedFlag = true;
-    //printf("haay\r\n");
 }
 
 static void timer_flash_callback(void){
@@ -192,8 +235,7 @@ void flash_SM_process(){
         startFlash = false;
         iCurrLedFlash = -1;
         currLedFlashState = false; 
-        timFlashElapsedFlag = true; //Simulate timer
-        timerHwFlashVal = get_hw_timer_val();
+        timer_flash_callback();
     }
 
     if(timFlashElapsedFlag){
