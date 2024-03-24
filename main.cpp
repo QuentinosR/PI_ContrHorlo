@@ -36,6 +36,7 @@
 #define FLASH_PERIOD_US 10000
 #endif
 
+#define GET_OFF_TIME(period, on) (period - on)
 #define FLASH_PERIOD_STEP_US (FLASH_PERIOD_US / 10)
 #define TRIG_PERIOD_STEP_US (TRIG_PERIOD_US / 10)
 
@@ -85,7 +86,7 @@ static uint32_t get_hw_timer_val(){
 //-- Trigger --
 int tTrigPeriod = TRIG_PERIOD_US;
 int tTrigOn = TRIG_ON_US; //Can not be modified
-int tTrigOff = tTrigPeriod - tTrigOn;
+int tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 volatile uint32_t timerHwTrigVal = get_hw_timer_val();
@@ -231,7 +232,7 @@ int init(){
 
     init_uart();
     for(int i = 0; i < NB_FLASHS; i++){
-        flashTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+        flashTimes[i][0] = GET_OFF_TIME(tFlashPeriod, tFlashOn); //For the moment same value. 
         flashTimes[i][1] = tFlashOn;
     }
 
@@ -251,12 +252,12 @@ void trig_SM_process(){
                 break;
             case TRIG_PERIOD_INC:
                 tTrigPeriod += TRIG_PERIOD_STEP_US;
-                tTrigOff = tTrigPeriod - tTrigOn;
+                tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
                 
                 break;
             case TRIG_PERIOD_DEC:
                 tTrigPeriod -= TRIG_PERIOD_STEP_US;
-                tTrigOff = tTrigPeriod - tTrigOn;
+                tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
                 break;
             default:
                 break;
