@@ -29,14 +29,15 @@
 #define TRIG_ON_US 20
 #define FLASH_ON_US 5
 #define FLASH_PERIOD_US 10
-
-#define TIME_TRIG_PERIOD_STEP_US (TRIG_PERIOD_US / 10)
 #else
 #define TRIG_PERIOD_US 100000
 #define TRIG_ON_US 2000
 #define FLASH_ON_US 1000
 #define FLASH_PERIOD_US 10000
 #endif
+
+#define FLASH_PERIOD_STEP_US (FLASH_PERIOD_US / 10)
+#define TRIG_PERIOD_STEP_US (TRIG_PERIOD_US / 10)
 
 typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
@@ -65,8 +66,6 @@ typedef enum led_cmd_t{
     LED_NONE = 0,
     LED_PERIOD_INC,
     LED_PERIOD_DEC,
-    LED_ON_INC,
-    LED_ON_DEC,
     LED_NB_CMDS
 
 } led_cmd_t;
@@ -77,7 +76,6 @@ const char led_cmd_txt[TRIG_NB_CMDS]{
     'y',
     'z',
     'o',
-    'f'
 };
 
 static uint32_t get_hw_timer_val(){
@@ -86,7 +84,7 @@ static uint32_t get_hw_timer_val(){
 
 //-- Trigger --
 int tTrigPeriod = TRIG_PERIOD_US;
-int tTrigOn = TRIG_ON_US;
+int tTrigOn = TRIG_ON_US; //Can not be modified
 int tTrigOff = tTrigPeriod - tTrigOn;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
@@ -94,7 +92,7 @@ volatile uint32_t timerHwTrigVal = get_hw_timer_val();
 volatile trigger_cmd_t trigCmd = AUTO_START ? TRIG_START : TRIG_NONE;
 
 //-- Led flashs --
-int tLedUS = FLASH_ON_US; 
+int tFlashOn = FLASH_ON_US; //Can not be modified
 int tFlashPeriod = FLASH_PERIOD_US;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
 uint32_t ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
@@ -133,7 +131,6 @@ void on_uart_rx() {
         // Can we send it back?
         if (uart_is_writable(UART_ID)) {
             cmd_handle(c);
-            
             //uart_putc(UART_ID, c);
         }
     }
@@ -213,6 +210,13 @@ void init_uart(){
     //uart_puts(UART_ID, "\nHello, uart interrupts\n");
 }
 
+//For the moment same value
+void update_led_times_array(){
+    for(int i = 0; i < NB_LED_FLASHS; i++){
+        ledTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+    }
+}
+
 int init(){
     stdio_init_all();
     
@@ -226,11 +230,11 @@ int init(){
     printf("begin\n");
 
     init_uart();
-
     for(int i = 0; i < NB_LED_FLASHS; i++){
-        ledTimes[i][0] = tFlashPeriod - tLedUS; //For the moment same value. 
-        ledTimes[i][1] = tLedUS;
+        ledTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+        ledTimes[i][1] = tFlashOn;
     }
+
     return 0;
 }
 
@@ -246,11 +250,12 @@ void trig_SM_process(){
                 timer_trig_callback();
                 break;
             case TRIG_PERIOD_INC:
-                tTrigPeriod += TIME_TRIG_PERIOD_STEP_US;
+                tTrigPeriod += TRIG_PERIOD_STEP_US;
                 tTrigOff = tTrigPeriod - tTrigOn;
+                
                 break;
             case TRIG_PERIOD_DEC:
-                tTrigPeriod -= TIME_TRIG_PERIOD_STEP_US;
+                tTrigPeriod -= TRIG_PERIOD_STEP_US;
                 tTrigOff = tTrigPeriod - tTrigOn;
                 break;
             default:
@@ -278,6 +283,21 @@ void trig_SM_process(){
 //__________           __________           __________
 //|        |___________|        |___________|        |___...
 void flash_SM_process(){
+    if(ledCmd != LED_NONE){
+        switch(ledCmd){
+            case LED_PERIOD_INC:
+                tFlashPeriod += FLASH_PERIOD_STEP_US;
+                update_led_times_array();
+                break;
+            case LED_PERIOD_DEC:
+                tFlashPeriod -= FLASH_PERIOD_STEP_US;
+                update_led_times_array();
+                break;
+            default:
+                break;
+        }
+        ledCmd = LED_NONE;
+    }
     if(startFlash){
         startFlash = false;
         iCurrLedFlash = -1;
