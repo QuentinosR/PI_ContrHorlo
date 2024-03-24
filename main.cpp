@@ -47,9 +47,8 @@ typedef enum trigger_cmd_t{
     TRIG_PERIOD_INC, //Increase the period by one step
     TRIG_PERIOD_DEC, //Decrease the period by one step
     TRIG_PERIOD_DEC_ONE,  //Decrease the period by one step for one period only
-    TRIG_PERIODE_INC_ONE,  //Increase the period by one step for one period only
+    TRIG_PERIOD_INC_ONE,  //Increase the period by one step for one period only
     TRIG_NB_CMDS
-
 } trigger_cmd_t;
 
 const char trigger_cmd_txt[TRIG_NB_CMDS]{
@@ -85,6 +84,8 @@ static uint32_t get_hw_timer_val(){
 
 //-- Trigger --
 int tTrigPeriod = TRIG_PERIOD_US;
+int tTrigPeriodSave = tTrigPeriod;
+bool isTrigPeriodTmp = false;
 int tTrigOn = TRIG_ON_US; //Can not be modified
 int tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
 bool trigOutputState = false;
@@ -103,6 +104,18 @@ bool currFlashState = false;
 bool startFlash = false;
 volatile uint32_t timerHwFlashVal = 0;
 volatile flash_cmd_t flashCmd = LED_NONE;
+
+//Return -1 on illegal value
+int trig_set_new_period(int newPeriod){
+
+    int newtTrigOff = GET_OFF_TIME(newPeriod, tTrigOn);
+    if(newtTrigOff < 0)
+        return -1;
+
+    tTrigOff = newtTrigOff;
+    tTrigPeriod = newPeriod;
+    return 0;
+}
 
 
 void cmd_handle(char c){
@@ -214,7 +227,7 @@ void init_uart(){
 //For the moment same value
 void update_flash_times_array(){
     for(int i = 0; i < NB_FLASHS; i++){
-        flashTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+        flashTimes[i][0] = GET_OFF_TIME(tFlashPeriod, tFlashOn); //For the moment same value. 
     }
 }
 
@@ -245,20 +258,27 @@ int init(){
 //__________                   __________
 //|        |___________________|        |__...
 void trig_SM_process(){
+    int errCode = 0;
     if(trigCmd != TRIG_NONE){ //Command to handle
         switch(trigCmd){
             case TRIG_START:
                 timer_trig_callback();
                 break;
-            case TRIG_PERIOD_INC:
-                tTrigPeriod += TRIG_PERIOD_STEP_US;
-                tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
-                
-                break;
+
+            case TRIG_PERIOD_DEC_ONE:
+                isTrigPeriodTmp = true;
+                tTrigPeriodSave = tTrigPeriod;
             case TRIG_PERIOD_DEC:
-                tTrigPeriod -= TRIG_PERIOD_STEP_US;
-                tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
+                errCode = trig_set_new_period(tTrigPeriod - TRIG_PERIOD_STEP_US);
                 break;
+            case TRIG_PERIOD_INC_ONE:
+                isTrigPeriodTmp = true;
+                tTrigPeriodSave = tTrigPeriod;
+            case TRIG_PERIOD_INC:
+                errCode = trig_set_new_period(tTrigPeriod + TRIG_PERIOD_STEP_US);
+                break;
+
+
             default:
                 break;
         }
@@ -275,6 +295,10 @@ void trig_SM_process(){
         // Reset the timerTrig with the updated delay
         alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
         gpio_put(TRIG_PIN, trigOutputState);
+        if(isTrigPeriodTmp && !trigOutputState){
+            isTrigPeriodTmp = false;
+            trig_set_new_period(tTrigPeriodSave);
+        }
     }
 }
 
@@ -290,10 +314,12 @@ void flash_SM_process(){
                 tFlashPeriod += FLASH_PERIOD_STEP_US;
                 update_flash_times_array();
                 break;
+
             case LED_PERIOD_DEC:
                 tFlashPeriod -= FLASH_PERIOD_STEP_US;
                 update_flash_times_array();
                 break;
+
             default:
                 break;
         }
