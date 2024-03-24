@@ -11,7 +11,7 @@
 
 #define TRIG_PIN      16
 #define LED_PIN       15
-#define NB_LED_FLASHS 3
+#define NB_FLASHS 3
 
 #define UART_ID uart0
 #define BAUD_RATE 115200
@@ -62,16 +62,16 @@ const char trigger_cmd_txt[TRIG_NB_CMDS]{
 
 };
 
-typedef enum led_cmd_t{
+typedef enum flash_cmd_t{
     LED_NONE = 0,
     LED_PERIOD_INC,
     LED_PERIOD_DEC,
     LED_NB_CMDS
 
-} led_cmd_t;
+} flash_cmd_t;
 
 
-const char led_cmd_txt[TRIG_NB_CMDS]{
+const char flash_cmd_txt[TRIG_NB_CMDS]{
     'X',
     'y',
     'z',
@@ -95,13 +95,13 @@ volatile trigger_cmd_t trigCmd = AUTO_START ? TRIG_START : TRIG_NONE;
 int tFlashOn = FLASH_ON_US; //Can not be modified
 int tFlashPeriod = FLASH_PERIOD_US;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
-uint32_t ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
+uint32_t flashTimes[NB_FLASHS][2]; //[Off time][On time]
 //   For state machine
-int iCurrLedFlash = 0;
-bool currLedFlashState = false;
+int iCurrFlash = 0;
+bool currFlashState = false;
 bool startFlash = false;
 volatile uint32_t timerHwFlashVal = 0;
-volatile led_cmd_t ledCmd = LED_NONE;
+volatile flash_cmd_t flashCmd = LED_NONE;
 
 
 void cmd_handle(char c){
@@ -114,10 +114,10 @@ void cmd_handle(char c){
     }
 
     for(uint8_t i = 0; i < LED_NB_CMDS; i++){
-        led_cmd_t cmd = (led_cmd_t) i;
-        if(led_cmd_txt[i] == c){
-            ledCmd = (led_cmd_t) i;
-            printf("led cmd : %u\n", ledCmd);
+        flash_cmd_t cmd = (flash_cmd_t) i;
+        if(flash_cmd_txt[i] == c){
+            flashCmd = (flash_cmd_t) i;
+            printf("flash cmd : %u\n", flashCmd);
             return;
         }
     }
@@ -211,9 +211,9 @@ void init_uart(){
 }
 
 //For the moment same value
-void update_led_times_array(){
-    for(int i = 0; i < NB_LED_FLASHS; i++){
-        ledTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+void update_flash_times_array(){
+    for(int i = 0; i < NB_FLASHS; i++){
+        flashTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
     }
 }
 
@@ -230,9 +230,9 @@ int init(){
     printf("begin\n");
 
     init_uart();
-    for(int i = 0; i < NB_LED_FLASHS; i++){
-        ledTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
-        ledTimes[i][1] = tFlashOn;
+    for(int i = 0; i < NB_FLASHS; i++){
+        flashTimes[i][0] = tFlashPeriod - tFlashOn; //For the moment same value. 
+        flashTimes[i][1] = tFlashOn;
     }
 
     return 0;
@@ -283,41 +283,41 @@ void trig_SM_process(){
 //__________           __________           __________
 //|        |___________|        |___________|        |___...
 void flash_SM_process(){
-    if(ledCmd != LED_NONE){
-        switch(ledCmd){
+    if(flashCmd != LED_NONE){
+        switch(flashCmd){
             case LED_PERIOD_INC:
                 tFlashPeriod += FLASH_PERIOD_STEP_US;
-                update_led_times_array();
+                update_flash_times_array();
                 break;
             case LED_PERIOD_DEC:
                 tFlashPeriod -= FLASH_PERIOD_STEP_US;
-                update_led_times_array();
+                update_flash_times_array();
                 break;
             default:
                 break;
         }
-        ledCmd = LED_NONE;
+        flashCmd = LED_NONE;
     }
     if(startFlash){
         startFlash = false;
-        iCurrLedFlash = -1;
-        currLedFlashState = false; 
+        iCurrFlash = -1;
+        currFlashState = false; 
         timer_flash_callback();
     }
 
     if(timFlashElapsedFlag){
         timFlashElapsedFlag = false;
-        currLedFlashState = !currLedFlashState;
-        int stateInt = currLedFlashState ? 1 : 0;
-        if(currLedFlashState){ //One period done when we begin in On state.
-            iCurrLedFlash++;
-            if(iCurrLedFlash >= NB_LED_FLASHS){
+        currFlashState = !currFlashState;
+        int stateInt = currFlashState ? 1 : 0;
+        if(currFlashState){ //One period done when we begin in On state.
+            iCurrFlash++;
+            if(iCurrFlash >= NB_FLASHS){
                 return;
             }
         }
 
-        alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, ledTimes[iCurrLedFlash][stateInt]);
-        gpio_put(LED_PIN, currLedFlashState);
+        alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
+        gpio_put(LED_PIN, currFlashState);
 
     }
     //printf("blip!\n");
