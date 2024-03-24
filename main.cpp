@@ -25,30 +25,32 @@
 #define AUTO_START 0
 
 #if USE_TESTING_MODE
-#define TIME_T_TRIG_PERIOD_US 100
-#define TIME_T_TRIG_ON_US 20
-#define TIME_T_FLASH_ON_US 5
-#define TIME_T_FLASH_PERIOD_US 10
+#define TRIG_PERIOD_US 100
+#define TRIG_ON_US 20
+#define FLASH_ON_US 5
+#define FLASH_PERIOD_US 10
+
+#define TIME_TRIG_PERIOD_STEP_US (TRIG_PERIOD_US / 10)
 #else
-#define TIME_T_TRIG_PERIOD_US 100000
-#define TIME_T_TRIG_ON_US 2000
-#define TIME_T_FLASH_ON_US 1000
-#define TIME_T_FLASH_PERIOD_US 10000
+#define TRIG_PERIOD_US 100000
+#define TRIG_ON_US 2000
+#define FLASH_ON_US 1000
+#define FLASH_PERIOD_US 10000
 #endif
 
 typedef enum trigger_cmd_t{
-    TGR_NONE = 0,
-    TGR_START,
-    TGR_STOP,
-    TGR_PERIOD_INC, //Increase the period by one step
-    TGR_PERIOD_DEC, //Decrease the period by one step
-    TGR_PERIOD_DEC_ONE,  //Decrease the period by one step for one period only
-    TGR_PERIODE_INC_ONE,  //Increase the period by one step for one period only
-    TGR_NB_CMDS
+    TRIG_NONE = 0,
+    TRIG_START,
+    TRIG_STOP,
+    TRIG_PERIOD_INC, //Increase the period by one step
+    TRIG_PERIOD_DEC, //Decrease the period by one step
+    TRIG_PERIOD_DEC_ONE,  //Decrease the period by one step for one period only
+    TRIG_PERIODE_INC_ONE,  //Increase the period by one step for one period only
+    TRIG_NB_CMDS
 
 } trigger_cmd_t;
 
-const char trigger_cmd_txt[TGR_NB_CMDS]{
+const char trigger_cmd_txt[TRIG_NB_CMDS]{
     'X',
     's',
     'e',
@@ -70,7 +72,7 @@ typedef enum led_cmd_t{
 } led_cmd_t;
 
 
-const char led_cmd_txt[TGR_NB_CMDS]{
+const char led_cmd_txt[TRIG_NB_CMDS]{
     'X',
     'y',
     'z',
@@ -83,18 +85,17 @@ static uint32_t get_hw_timer_val(){
 }
 
 //-- Trigger --
-int tTrigUs = TIME_T_TRIG_PERIOD_US;
-int tTcUs = TIME_T_TRIG_ON_US;
-int tTrigOn = tTcUs;
-int tTrigOff = tTrigUs - tTcUs;
+int tTrigPeriod = TRIG_PERIOD_US;
+int tTrigOn = TRIG_ON_US;
+int tTrigOff = tTrigPeriod - tTrigOn;
 bool trigOutputState = false;
 volatile bool timTrigElapsedFlag = false;
 volatile uint32_t timerHwTrigVal = get_hw_timer_val();
-volatile trigger_cmd_t trigCmd = AUTO_START ? TGR_START : TGR_NONE;
+volatile trigger_cmd_t trigCmd = AUTO_START ? TRIG_START : TRIG_NONE;
 
 //-- Led flashs --
-int tLedUs = TIME_T_FLASH_ON_US; 
-int tFlashPeriod = TIME_T_FLASH_PERIOD_US;  //If tLi/i+1 = tLn/n+1
+int tLedUS = FLASH_ON_US; 
+int tFlashPeriod = FLASH_PERIOD_US;  //If tLi/i+1 = tLn/n+1
 volatile bool timFlashElapsedFlag = false;
 uint32_t ledTimes[NB_LED_FLASHS][2]; //[Off time][On time]
 //   For state machine
@@ -106,7 +107,7 @@ volatile led_cmd_t ledCmd = LED_NONE;
 
 
 void cmd_handle(char c){
-    for(uint8_t i = 0; i < TGR_NB_CMDS; i++){
+    for(uint8_t i = 0; i < TRIG_NB_CMDS; i++){
         if(trigger_cmd_txt[i] == c){
             trigCmd = (trigger_cmd_t) i;
             printf("trigger cmd : %u\n", trigCmd);
@@ -152,7 +153,7 @@ static void timer_flash_callback(void){
     timFlashElapsedFlag = true;
 }
 
-static void alarm_in_us(uint8_t alarmNum, uint8_t alarmIrqId, irq_handler_t irqHandler, uint32_t timerHwIrq, uint32_t delay_us) {
+static void alarm_in_US(uint8_t alarmNum, uint8_t alarmIrqId, irq_handler_t irqHandler, uint32_t timerHwIrq, uint32_t delay_US) {
     // Enable the interrupt for our alarm (the timer outputs 4 alarm irqs)
     hw_set_bits(&timer_hw->inte, 1u << alarmNum);
     // Set irq handler for alarm irq
@@ -164,7 +165,7 @@ static void alarm_in_us(uint8_t alarmNum, uint8_t alarmIrqId, irq_handler_t irqH
     // Alarm is only 32 bits so if trying to delay more
     // than that need to be careful and keep track of the upper
     // bits
-    uint64_t target = timerHwIrq + delay_us;
+    uint64_t target = timerHwIrq + delay_US;
 
     // Write the lower 32 bits of the target time to the alarm which
     // will arm it
@@ -175,7 +176,7 @@ void init_uart(){
       // Set up our UART with a basic baud rate.
     uart_init(UART_ID, 2400);
 
-    // Set the TX and RX pins by using the function select on the GPIO
+    // Set the TX and RX pins by USing the function select on the GPIO
     // Set datasheet for more information on function select
     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
@@ -196,7 +197,7 @@ void init_uart(){
 
     // Set up a RX interrupt
     // We need to set up the handler first
-    // Select correct interrupt for the UART we are using
+    // Select correct interrupt for the UART we are USing
     int UART_IRQ = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
 
     // And set up and enable the interrupt handlers
@@ -227,27 +228,35 @@ int init(){
     init_uart();
 
     for(int i = 0; i < NB_LED_FLASHS; i++){
-        ledTimes[i][0] = tFlashPeriod - tLedUs; //For the moment same value. 
-        ledTimes[i][1] = tLedUs;
+        ledTimes[i][0] = tFlashPeriod - tLedUS; //For the moment same value. 
+        ledTimes[i][1] = tLedUS;
     }
     return 0;
 }
 
 //Two states : OFF and ON
-// <-tTcUs->
+// <-tTrigOn->
 //<------------tTrigMS-------->
 //__________                   __________
 //|        |___________________|        |__...
 void trig_SM_process(){
-    if(trigCmd != TGR_NONE){ //Command to handle
+    if(trigCmd != TRIG_NONE){ //Command to handle
         switch(trigCmd){
-            case TGR_START:
+            case TRIG_START:
                 timer_trig_callback();
+                break;
+            case TRIG_PERIOD_INC:
+                tTrigPeriod += TIME_TRIG_PERIOD_STEP_US;
+                tTrigOff = tTrigPeriod - tTrigOn;
+                break;
+            case TRIG_PERIOD_DEC:
+                tTrigPeriod -= TIME_TRIG_PERIOD_STEP_US;
+                tTrigOff = tTrigPeriod - tTrigOn;
                 break;
             default:
                 break;
         }
-        trigCmd = TGR_NONE; //Cmd only for one action
+        trigCmd = TRIG_NONE; //Cmd only for one action
 
     }
 
@@ -258,7 +267,7 @@ void trig_SM_process(){
             startFlash = true;
         int stateDuration = trigOutputState ? tTrigOn : tTrigOff;
         // Reset the timerTrig with the updated delay
-        alarm_in_us(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
+        alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
         gpio_put(TRIG_PIN, trigOutputState);
     }
 }
@@ -287,7 +296,7 @@ void flash_SM_process(){
             }
         }
 
-        alarm_in_us(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, ledTimes[iCurrLedFlash][stateInt]);
+        alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, ledTimes[iCurrLedFlash][stateInt]);
         gpio_put(LED_PIN, currLedFlashState);
 
     }
