@@ -1,7 +1,9 @@
 #include "hw.h"
+//Trigger has to be done before flash because trigger is not immediate. Check time in datasheet.--
 //TODO Not do last OFF period of flash.
-//TODO Check if new flash value is authorized
-//TODO Use SaveOffTime
+//TODO Check wrong period and signal when 'y'
+//TODO Modification of 'y' and 'x' have to be done before trigger.
+//TODO Give callbacks to trig SM: state ON and state OFF.
 #define NB_FLASHS 3
 
 #define USE_TESTING_MODE 1
@@ -10,21 +12,17 @@
 #if USE_TESTING_MODE
 #define CAMERA_EXPOSITION_TIME_US 1
 #define FLASH_ON_US 5
-#define TRIG_PERIOD_START_US 500
+#define TRIG_OFF_START_US 500
 #else
 #define CAMERA_EXPOSITION_TIME_US 19
 #define FLASH_ON_US 1000
-#define TRIG_PERIOD_START_US 20000
+#define TRIG_OFF_START_US 10000
 #endif
 
 #define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
-#define FLASH_PERIOD_INIT_US (FLASH_ON_US * 2) //By default, duty cycle of 50%
 
-#define GET_OFF_TIME(period, on) (period - on)
-#define GET_ON_TIME(period, off) GET_OFF_TIME(period, off)
-
-#define FLASH_PERIOD_STEP_US 100
-#define TRIG_PERIOD_STEP_US 500
+#define FLASH_OFF_STEP_US 100
+#define TRIG_OFF_STEP_US 500
 
 typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
@@ -65,9 +63,8 @@ const char flash_cmd_txt[TRIG_NB_CMDS]{
 };
 
 //-- Trigger --
-int tTrigPeriod;
-int tTrigPeriodSave;
-bool isTrigPeriodTmp;
+int tTrigOffSave;
+bool isTrigOffTmpUsed;
 int tTrigOn;
 int tTrigOff;
 bool trigOutputState;
@@ -93,44 +90,47 @@ int get_total_flash_duration(){
 }
 
 //Return -1 on illegal value
-int trig_set_new_period(int newPeriod){
-    int newtTrigOff = GET_OFF_TIME(newPeriod, tTrigOn);
-    if(newtTrigOff < 0)
+int trig_set_new_off_time(int newtOff){
+    if(newtOff < 0)
         return -1;
 
-    tTrigOff = newtTrigOff;
-    tTrigPeriod = newPeriod;
+    tTrigOff = newtOff;
     return 0;
 }
-//On time has a minimum possible value
-void trig_set_new_on_time(int newtOn){
+
+int trig_set_new_on_time(int newtOn){
+    //On time has a minimum possible value
     if(newtOn < TRIG_ON_MIN_US)
         newtOn = TRIG_ON_MIN_US;
 
+    int diffTime = newtOn - tTrigOn;
+
     tTrigOn = newtOn;
+
+    return trig_set_new_off_time(tTrigOff - diffTime); //Keep the period
+
 }
 
 //Three flashs is 3 ON + 2 OFF
-int flashs_set_new_period(int newPeriod){
-    int newtFlashOff = GET_OFF_TIME(newPeriod, flashTimes[0][1]); //All the same for the moment
-    if(newtFlashOff < 0)
+int flashs_set_new_off_time(int newtOff){
+    if(newtOff < 0)
         return -1;
 
     for(int i = 0; i < NB_FLASHS; i++){
-        flashTimes[i][0] = newtFlashOff; //For the moment same value. 
-        flashTimes[i][1] = FLASH_PERIOD_INIT_US; // Doesn't change.
+        flashTimes[i][0] = newtOff; //For the moment same value. 
+        flashTimes[i][1] = FLASH_ON_US; // Doesn't change.
     }
     flashTimes[NB_FLASHS - 1][0] = 0;
     return 0;
 }
 
-int flashs_set_new_period_and_update_trig_time_on(int newPeriod){
+//Only function that can be called on cmd
+int flashs_and_trig_update(int newtOffLed){
     int ec;
-    ec = flashs_set_new_period(newPeriod);
+    ec = flashs_set_new_off_time(newtOffLed);
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
     trig_set_new_on_time(totalFlashDuration);
-    trig_set_new_period(tTrigPeriod); //Set the same but adjust off time.
     return 0;
 }
 
@@ -169,52 +169,6 @@ static void timer_flash_callback(void){
     timFlashElapsedFlag = true;
 }
 
-void trig_SM_process(){
-    static int ec = 0;
-    if(trigCmd != TRIG_NONE){ //Handle command
-        switch(trigCmd){
-            case TRIG_START:
-                timer_trig_callback();
-                break;
-
-            case TRIG_PERIOD_DEC_ONE:
-                isTrigPeriodTmp = true;
-                tTrigPeriodSave = tTrigPeriod;
-            case TRIG_PERIOD_DEC:
-                ec = trig_set_new_period(tTrigPeriod - TRIG_PERIOD_STEP_US);
-                break;
-            case TRIG_PERIOD_INC_ONE:
-                isTrigPeriodTmp = true;
-                tTrigPeriodSave = tTrigPeriod;
-            case TRIG_PERIOD_INC:
-                ec = trig_set_new_period(tTrigPeriod + TRIG_PERIOD_STEP_US);
-                break;
-
-
-            default:
-                break;
-        }
-        trigCmd = TRIG_NONE; //Cmd only for one action
-
-    }
-
-    if(timTrigElapsedFlag){
-        timTrigElapsedFlag = false; //reset flag
-        trigOutputState = !trigOutputState; //Begin by changing state
-        if(trigOutputState)
-            startFlash = true;
-        int stateDuration = trigOutputState ? tTrigOn : tTrigOff;
-        // Reset the timerTrig with the updated delay
-        alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
-        gpio_put(TRIG_PIN, trigOutputState);
-
-        //To modify the period, off time is adjusted
-        if(isTrigPeriodTmp && !trigOutputState){
-            isTrigPeriodTmp = false;
-            trig_set_new_period(tTrigPeriodSave);
-        }
-    }
-}
 
 //<-tFlashOn->            <-tFlashOn->          <-tFlashOn-> 
 //<-----tFlashPeriod----><-----tFlashPeriod---->
@@ -225,37 +179,83 @@ void trig_SM_process(){
 //<---------------------------------------tTrigPeriod------------------------------------->
 //__________________________________________________________                               ____
 //|                                                        |_______________________________|...
-void flash_SM_process(){
-    static int newFlashsPeriod;
-    static int ec;
 
+
+void trig_SM_process(){
+    static int ec = 0;
+    if(trigCmd != TRIG_NONE){ //Handle command
+        switch(trigCmd){
+            case TRIG_START:
+                timer_trig_callback();
+                break;
+
+            case TRIG_PERIOD_DEC_ONE:
+                isTrigOffTmpUsed = true;
+                tTrigOffSave = tTrigOff;
+            case TRIG_PERIOD_DEC:
+                ec = trig_set_new_off_time(tTrigOff - TRIG_OFF_STEP_US);
+                break;
+            case TRIG_PERIOD_INC_ONE:
+                isTrigOffTmpUsed = true;
+                tTrigOffSave = tTrigOff;
+            case TRIG_PERIOD_INC:
+                ec = trig_set_new_off_time(tTrigOff + TRIG_OFF_STEP_US);
+                break;
+
+
+            default:
+                break;
+        }
+        trigCmd = TRIG_NONE; //Only for one action
+    }
+
+    if(timTrigElapsedFlag){
+        timTrigElapsedFlag = false; 
+        trigOutputState = !trigOutputState;
+
+        //Beginning of high state -> Beginning of flash.
+        if(trigOutputState){
+            startFlash = true;
+
+            //<!> Handle command before setting trigger alarm.
+            //<!> Otherwise, total flashs duration will be different than trigger. 
+            if(flashCmd != LED_NONE){
+                switch(flashCmd){
+                    case LED_PERIOD_INC:
+                        ec = flashs_and_trig_update(flashTimes[0][0] + FLASH_OFF_STEP_US);
+                        break;
+
+                    case LED_PERIOD_DEC:
+                        ec = flashs_and_trig_update(flashTimes[0][0] - FLASH_OFF_STEP_US);
+                        break;
+
+                    default:
+                        break;
+                }
+                flashCmd = LED_NONE; //Only for one action
+            }
+        }
+
+        int stateDuration = trigOutputState ? tTrigOn : tTrigOff;
+       
+        alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
+        gpio_put(TRIG_PIN, trigOutputState);
+
+        if(isTrigOffTmpUsed && !trigOutputState){
+            isTrigOffTmpUsed = false;
+            trig_set_new_off_time(tTrigOff); //Put the previous duration.
+        }
+    }
+
+}
+
+void flash_SM_process(){
     if(startFlash){
         startFlash = false;
         iCurrFlash = -1;
         currFlashState = false; 
         timer_flash_callback();
     }
-
-    //Command has to be handled only when flash begin.
-    //When -1, it's obligatory starting.
-    if(flashCmd != LED_NONE && iCurrFlash == -1){
-        switch(flashCmd){
-            case LED_PERIOD_INC:
-                newFlashsPeriod = flashTimes[0][0] + flashTimes[0][1] + FLASH_PERIOD_STEP_US;
-                ec = flashs_set_new_period_and_update_trig_time_on(newFlashsPeriod);
-                break;
-
-            case LED_PERIOD_DEC:
-                newFlashsPeriod = flashTimes[0][0] + flashTimes[0][1] - FLASH_PERIOD_STEP_US;
-                ec = flashs_set_new_period_and_update_trig_time_on(newFlashsPeriod);
-                break;
-
-            default:
-                break;
-        }
-        flashCmd = LED_NONE;
-    }
-
 
     if(timFlashElapsedFlag){
         timFlashElapsedFlag = false;
@@ -272,7 +272,6 @@ void flash_SM_process(){
         gpio_put(LED_PIN, currFlashState);
 
     }
-    //printf("blip!\n");
 }
 
 int init(){
@@ -286,14 +285,16 @@ int init(){
     startFlash = false;
     flashCmd = LED_NONE;
 
+    tTrigOn = 0;
+
     //Trigger
-    ec = flashs_set_new_period_and_update_trig_time_on(FLASH_PERIOD_INIT_US);
-    if(ec != 0) return -1;
-    ec = trig_set_new_period(TRIG_PERIOD_START_US);
+    ec = trig_set_new_off_time(TRIG_OFF_START_US);
     if(ec != 0) return -1;
 
-    isTrigPeriodTmp = false;
-    tTrigOff = GET_OFF_TIME(tTrigPeriod, tTrigOn);
+    ec = flashs_and_trig_update(FLASH_ON_US);
+    if(ec != 0) return -1;
+
+    isTrigOffTmpUsed = false;
     trigOutputState = false; //Begin to false
 
     timTrigElapsedFlag = false;
