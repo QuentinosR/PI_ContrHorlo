@@ -1,6 +1,7 @@
 #include "hw.h"
 //TODO Not do last OFF period of flash.
 //TODO Check if new flash value is authorized
+//TODO Use SaveOffTime
 #define NB_FLASHS 3
 
 #define USE_TESTING_MODE 1
@@ -129,6 +130,7 @@ int flashs_set_new_period_and_update_trig_time_on(int newPeriod){
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
     trig_set_new_on_time(totalFlashDuration);
+    trig_set_new_period(tTrigPeriod); //Set the same but adjust off time.
     return 0;
 }
 
