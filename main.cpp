@@ -1,13 +1,11 @@
 #include "hw.h"
 //Trigger has to be done before flash because trigger is not immediate. Check time in datasheet.--
 //TODO Not do last OFF period of flash.
-//TODO Check wrong period and signal when 'y'
-//TODO Modification of 'y' and 'x' have to be done before trigger.
 //TODO Give callbacks to trig SM: state ON and state OFF.
 #define NB_FLASHS 3
 
-#define USE_TESTING_MODE 1
-#define AUTO_START 0
+#define USE_TESTING_MODE 0
+#define AUTO_START 1
 
 #if USE_TESTING_MODE
 #define CAMERA_EXPOSITION_TIME_US 1
@@ -15,8 +13,8 @@
 #define TRIG_OFF_START_US 500
 #else
 #define CAMERA_EXPOSITION_TIME_US 19
-#define FLASH_ON_US 1000
-#define TRIG_OFF_START_US 10000
+#define FLASH_ON_US 10000
+#define TRIG_OFF_START_US 500000
 #endif
 
 #define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
@@ -130,7 +128,8 @@ int flashs_and_trig_update(int newtOffLed){
     ec = flashs_set_new_off_time(newtOffLed);
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
-    trig_set_new_on_time(totalFlashDuration);
+    //printf("%d\n", totalFlashDuration);
+    trig_set_new_on_time(totalFlashDuration + 500); //TODO remove
     return 0;
 }
 
@@ -252,7 +251,7 @@ void trig_SM_process(){
 void flash_SM_process(){
     if(startFlash){
         startFlash = false;
-        iCurrFlash = -1;
+        iCurrFlash = -1; //Automatically increased to 0
         currFlashState = false; 
         timer_flash_callback();
     }
@@ -260,14 +259,12 @@ void flash_SM_process(){
     if(timFlashElapsedFlag){
         timFlashElapsedFlag = false;
         currFlashState = !currFlashState;
-        int stateInt = currFlashState ? 1 : 0;
-        if(currFlashState){ //One period done when we begin in On state.
+        if(currFlashState) //One period done when we begin in On state.
             iCurrFlash++;
-            if(iCurrFlash >= NB_FLASHS){
-                return;
-            }
-        }
 
+        int stateInt = currFlashState ? 1 : 0;
+
+        //The last flash, has a off time of 0. So alarm setting function will automatically return.
         alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
         gpio_put(LED_PIN, currFlashState);
 

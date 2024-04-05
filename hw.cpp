@@ -6,7 +6,10 @@ uint32_t get_hw_timer_val(){
     return timer_hw->timerawl;
 }
 
+//Return if delay is null.
 void alarm_in_US(uint8_t alarmNum, uint8_t alarmIrqId, irq_handler_t irqHandler, uint32_t timerHwIrq, uint32_t delay_US) {
+    if(delay_US == 0)
+        return;
     // Enable the interrupt for our alarm (the timer outputs 4 alarm irqs)
     hw_set_bits(&timer_hw->inte, 1u << alarmNum);
     // Set irq handler for alarm irq
