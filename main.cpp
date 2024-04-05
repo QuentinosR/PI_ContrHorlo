@@ -11,16 +11,19 @@
 #define CAMERA_EXPOSITION_TIME_US 1
 #define FLASH_ON_US 5
 #define TRIG_OFF_START_US 500
+#define FLASH_OFF_STEP_US 100
+#define TRIG_OFF_STEP_US 500
 #else
 #define CAMERA_EXPOSITION_TIME_US 19
 #define FLASH_ON_US 10000
-#define TRIG_OFF_START_US 500000
+#define TRIG_OFF_START_US 100000
+#define FLASH_OFF_STEP_US 10000
+#define TRIG_OFF_STEP_US 50000
 #endif
 
 #define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
 
-#define FLASH_OFF_STEP_US 100
-#define TRIG_OFF_STEP_US 500
+#define CORRECTION_US 3
 
 typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
@@ -28,7 +31,6 @@ typedef enum trigger_cmd_t{
     TRIG_STOP,
     TRIG_PERIOD_INC, //Increase the period by one step
     TRIG_PERIOD_DEC, //Decrease the period by one step
-    TRIG_PERIOD_DEC_ONE,  //Decrease the period by one step for one period only
     TRIG_PERIOD_INC_ONE,  //Increase the period by one step for one period only
     TRIG_NB_CMDS
 } trigger_cmd_t;
@@ -39,7 +41,6 @@ const char trigger_cmd_txt[TRIG_NB_CMDS]{
     'e',
     'i',
     'd',
-    'a',
     'r',
 
 };
@@ -97,6 +98,7 @@ int trig_set_new_off_time(int newtOff){
 }
 
 int trig_set_new_on_time(int newtOn){
+    newtOn += CORRECTION_US;
     //On time has a minimum possible value
     if(newtOn < TRIG_ON_MIN_US)
         newtOn = TRIG_ON_MIN_US;
@@ -129,7 +131,7 @@ int flashs_and_trig_update(int newtOffLed){
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
     //printf("%d\n", totalFlashDuration);
-    trig_set_new_on_time(totalFlashDuration + 500); //TODO remove
+    trig_set_new_on_time(totalFlashDuration);
     return 0;
 }
 
@@ -188,9 +190,6 @@ void trig_SM_process(){
                 timer_trig_callback();
                 break;
 
-            case TRIG_PERIOD_DEC_ONE:
-                isTrigOffTmpUsed = true;
-                tTrigOffSave = tTrigOff;
             case TRIG_PERIOD_DEC:
                 ec = trig_set_new_off_time(tTrigOff - TRIG_OFF_STEP_US);
                 break;
@@ -238,11 +237,11 @@ void trig_SM_process(){
         int stateDuration = trigOutputState ? tTrigOn : tTrigOff;
        
         alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
-        gpio_put(TRIG_PIN, trigOutputState);
+        gpio_put(TRIG_PIN, trigOutputState); //takes ~ 1.7us. Not a problem due to camera trigger delay
 
         if(isTrigOffTmpUsed && !trigOutputState){
             isTrigOffTmpUsed = false;
-            trig_set_new_off_time(tTrigOff); //Put the previous duration.
+            trig_set_new_off_time(tTrigOffSave); //Put the previous duration.
         }
     }
 
