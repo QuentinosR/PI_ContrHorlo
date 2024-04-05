@@ -1,10 +1,10 @@
 #include "hw.h"
-//Trigger has to be done before flash because trigger is not immediate. Check time in datasheet.--
-//TODO Not do last OFF period of flash.
-//TODO Give callbacks to trig SM: state ON and state OFF.
+#include "pico/multicore.h"
+#include "pico/util/queue.h"
+
 #define NB_FLASHS 3
 
-#define USE_TESTING_MODE 0
+#define USE_TESTING_MODE 1
 #define AUTO_START 1
 
 #if USE_TESTING_MODE
@@ -300,15 +300,64 @@ int init(){
 
 }
 
+queue_t queue_ui_in;
+queue_t queue_ui_out;
+
+#define QUEUE_MESSAGE_SIZE 100
+#define NB_QUEUE_ENTRIES 10
+typedef enum queue_ui_in_data_t{
+    MARCHE=0,
+    MESSAGE,
+    NB_TYPES
+} queue_ui_in_type_t;
+
+typedef struct 
+{
+    queue_ui_in_type_t type;
+    double marche;
+    char message[QUEUE_MESSAGE_SIZE];
+} queue_ui_in_entry_t;
+
+typedef struct 
+{
+    trigger_cmd_t cmd;
+} queue_ui_out_entry_t;
+
+
+void process_core_1(){
+    //Todo set UART interrupt to handle cmds
+
+    queue_ui_in_entry_t entry;
+    printf("hello form core 1\n");
+    
+    while(1){
+        queue_remove_blocking(&queue_ui_in, &entry);
+        if(entry.type == MARCHE){
+            printf("Marche : %f\n", entry.marche);
+        }
+    }
+
+}
+
 int main()
 {
     init();
+    queue_init(&queue_ui_in, sizeof(queue_ui_in_entry_t), NB_QUEUE_ENTRIES);
+    queue_init(&queue_ui_out, sizeof(queue_ui_out_entry_t), NB_QUEUE_ENTRIES);
+
+
+    multicore_launch_core1(process_core_1);
+
+    queue_ui_in_entry_t ui_in_entry;
+    ui_in_entry.marche = 30.20;
+    ui_in_entry.type = MARCHE;
+    queue_try_add(&queue_ui_in, &ui_in_entry);
+
+
     while(1){
-        //tight_loop_contents();
         trig_SM_process();
         flash_SM_process();
     }
-
 
     return 0;
 }
