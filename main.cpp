@@ -107,9 +107,22 @@ typedef struct
     queue_ui_in_data_t data;
 } queue_ui_in_entry_t;
 
+typedef union qeue_ui_out_data_t{
+    trigger_cmd_t trigCmd;
+    flash_cmd_t flashCmd;
+
+}qeue_ui_out_data_t;
+
+typedef enum queue_ui_out_type_t{
+    TRIG_CMD=0,
+    FLASH_CMD,
+    CMD_NB_TYPES
+} queue_ui_out_type_t;
+
 typedef struct 
 {
-    trigger_cmd_t cmd;
+ queue_ui_out_type_t type;
+ qeue_ui_out_data_t data;   
 } queue_ui_out_entry_t;
 
 //Messages
@@ -378,7 +391,7 @@ void process_core_1(){
     //Todo set UART interrupt to handle cmds
 
     queue_ui_in_entry_t entry;
-    printf("hello form core 1\n");
+    printf("Hello form core 1\n");
     
     while(1){
         queue_remove_blocking(&queue_ui_in, &entry);
@@ -409,10 +422,19 @@ int main()
     ui_enqueue_data((void*)test, STRING);
 
 
+    queue_ui_out_entry_t ui_out_entry;
     while(1){
         trig_SM_process();
         flash_SM_process();
         //queue_try_add(&queue_ui_in, &ui_in_entry);
+        bool isAnEntry = queue_try_remove(&queue_ui_out, &ui_out_entry);
+        if(isAnEntry){
+            if(ui_out_entry.type == FLASH_CMD){
+                flashCmd = ui_out_entry.data.flashCmd;
+            }else if(ui_out_entry.type == TRIG_CMD){
+                trigCmd = ui_out_entry.data.trigCmd;
+            }
+        }
     }
 
     return 0;
