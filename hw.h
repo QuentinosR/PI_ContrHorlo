@@ -26,7 +26,8 @@
 typedef void (*uart_callback_t)(char);
 
 void alarm_in_US(uint8_t alarmNum, uint8_t alarmIrqId, irq_handler_t irqHandler, uint32_t timerHwIrq, uint32_t delay_US);
-int hw_init(uart_callback_t cb);
+void init_uart_interrupt(uart_callback_t cb);
+int hw_init();
 uint32_t get_hw_timer_val();
 
 

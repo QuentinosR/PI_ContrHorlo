@@ -69,7 +69,7 @@ int tTrigOff;
 bool trigOutputState;
 volatile bool timTrigElapsedFlag;
 volatile uint32_t timerHwTrigVal;
-volatile trigger_cmd_t trigCmd;
+volatile trigger_cmd_t trigCmd; //Obligatory shared between cores
 
 //-- Led flashs --
 volatile bool timFlashElapsedFlag;
@@ -78,12 +78,14 @@ int iCurrFlash;
 bool currFlashState;
 bool startFlash;
 volatile uint32_t timerHwFlashVal;
-volatile flash_cmd_t flashCmd;
+
+volatile flash_cmd_t flashCmd; //Obligatory shared between cores
 
 
 //Queue definition
+//Impossible to have queue out to handle command because queue_remove takes too much time.
 queue_t queue_ui_in;
-queue_t queue_ui_out;
+
 #define QUEUE_MESSAGE_SIZE 100
 #define NB_QUEUE_ENTRIES 10
 typedef enum queue_ui_in_type_t{
@@ -107,30 +109,7 @@ typedef struct
     queue_ui_in_data_t data;
 } queue_ui_in_entry_t;
 
-typedef union qeue_ui_out_data_t{
-    trigger_cmd_t trigCmd;
-    flash_cmd_t flashCmd;
-
-}qeue_ui_out_data_t;
-
-typedef enum queue_ui_out_type_t{
-    TRIG_CMD=0,
-    FLASH_CMD,
-    CMD_NB_TYPES
-} queue_ui_out_type_t;
-
-typedef struct 
-{
- queue_ui_out_type_t type;
- qeue_ui_out_data_t data;   
-} queue_ui_out_entry_t;
-
-//Messages
-const char messErrorModTrig[] = "Impossible to modify trigger off time!";
-const char messErrorModFlash[] = "Impossible to modify flash off time!";
-
-
-void ui_enqueue_data(void* data, queue_ui_in_type_t type){
+void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
     queue_ui_in_entry_t ui_in_entry;
     ui_in_entry.type = type;
 
@@ -149,6 +128,54 @@ void ui_enqueue_data(void* data, queue_ui_in_type_t type){
    
     queue_try_add(&queue_ui_in, &ui_in_entry);
 }
+
+void cmd_handle(char c){
+    for(uint8_t i = 0; i < TRIG_NB_CMDS; i++){
+        if(trigger_cmd_txt[i] == c){
+            trigCmd = (trigger_cmd_t) i;
+            //printf("trigger cmd : %u\n", trigCmd);
+            return;
+        }
+    }
+
+    for(uint8_t i = 0; i < LED_NB_CMDS; i++){
+        flash_cmd_t cmd = (flash_cmd_t) i;
+        if(flash_cmd_txt[i] == c){
+            flashCmd = (flash_cmd_t) i;
+            //printf("flash cmd : %u\n", flashCmd);
+            return;
+        }
+    }
+    //uart_putc(UART_ID, c);
+}
+
+void process_core_1(){
+    //Todo set UART interrupt to handle cmds
+    init_uart_interrupt(cmd_handle);
+
+    queue_ui_in_entry_t entry;
+    printf("Hello form core 1\n");
+    
+    while(1){
+        queue_remove_blocking(&queue_ui_in, &entry);
+        if(entry.type == MARCHE){
+            printf("[LOG] Marche : %f\n", entry.data.float64);
+        }else if(entry.type == STRING){
+            printf("[WARNING] %s\n", entry.data.str);
+        }else if(entry.type == TRIG_OFF_TIME){
+             printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
+        }else if(entry.type == FLASH_OFF_TIME){
+             printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
+        }
+    }
+
+}
+
+
+//Messages
+const char messErrorModTrig[] = "Impossible to modify trigger off time!";
+const char messErrorModFlash[] = "Impossible to modify flash off time!";
+
 
 int get_total_flash_duration(){
     int cptUs = 0;
@@ -206,26 +233,6 @@ int flashs_and_trig_update(int newtOffLed){
 }
 
 
-void cmd_handle(char c){
-    for(uint8_t i = 0; i < TRIG_NB_CMDS; i++){
-        if(trigger_cmd_txt[i] == c){
-            trigCmd = (trigger_cmd_t) i;
-            //printf("trigger cmd : %u\n", trigCmd);
-            return;
-        }
-    }
-
-    for(uint8_t i = 0; i < LED_NB_CMDS; i++){
-        flash_cmd_t cmd = (flash_cmd_t) i;
-        if(flash_cmd_txt[i] == c){
-            flashCmd = (flash_cmd_t) i;
-            //printf("flash cmd : %u\n", flashCmd);
-            return;
-        }
-    }
-    //uart_putc(UART_ID, c);
-}
-
 static void timer_trig_callback(void) {
     timerHwTrigVal = get_hw_timer_val();
     // Clear the alarm irq
@@ -279,10 +286,10 @@ void trig_SM_process(){
         }
         trigCmd = TRIG_NONE; //Only for one action
         if(ec == 0){
-            ui_enqueue_data((void*)&tTrigOff, TRIG_OFF_TIME);
+            ui_enqueue_data_print((void*)&tTrigOff, TRIG_OFF_TIME);
         }
         if(ec == -1){
-            ui_enqueue_data((void*)messErrorModTrig, STRING);
+            ui_enqueue_data_print((void*)messErrorModTrig, STRING);
         }
     }
 
@@ -313,10 +320,10 @@ void trig_SM_process(){
                 flashCmd = LED_NONE; //Only for one action
                 
                 if(ec == 0){
-                    ui_enqueue_data((void*)&flashTimes[0][0], FLASH_OFF_TIME);
+                    ui_enqueue_data_print((void*)&flashTimes[0][0], FLASH_OFF_TIME);
                 }
                 if(ec == -1){
-                    ui_enqueue_data((void*)messErrorModFlash, STRING);
+                    ui_enqueue_data_print((void*)messErrorModFlash, STRING);
                 }
             }
         }
@@ -360,7 +367,7 @@ void flash_SM_process(){
 int init(){
     int ec;
     
-    hw_init(cmd_handle);
+    hw_init();
 
     //Flashs
     timFlashElapsedFlag = false;
@@ -387,54 +394,22 @@ int init(){
 
 }
 
-void process_core_1(){
-    //Todo set UART interrupt to handle cmds
-
-    queue_ui_in_entry_t entry;
-    printf("Hello form core 1\n");
-    
-    while(1){
-        queue_remove_blocking(&queue_ui_in, &entry);
-        if(entry.type == MARCHE){
-            printf("[LOG] Marche : %f\n", entry.data.float64);
-        }else if(entry.type == STRING){
-            printf("[WARNING] %s\n", entry.data.str);
-        }else if(entry.type == TRIG_OFF_TIME){
-             printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
-        }else if(entry.type == FLASH_OFF_TIME){
-             printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
-        }
-    }
-
-}
 
 int main()
 {
-    init();
+    init(); //Common to both cores
     queue_init(&queue_ui_in, sizeof(queue_ui_in_entry_t), NB_QUEUE_ENTRIES);
-    queue_init(&queue_ui_out, sizeof(queue_ui_out_entry_t), NB_QUEUE_ENTRIES);
 
     multicore_launch_core1(process_core_1);
 
     queue_ui_in_entry_t ui_in_entry;
     const char test[] = "coucou!\n";
 
-    ui_enqueue_data((void*)test, STRING);
+    ui_enqueue_data_print((void*)test, STRING);
 
-
-    queue_ui_out_entry_t ui_out_entry;
     while(1){
         trig_SM_process();
         flash_SM_process();
-        //queue_try_add(&queue_ui_in, &ui_in_entry);
-        bool isAnEntry = queue_try_remove(&queue_ui_out, &ui_out_entry);
-        if(isAnEntry){
-            if(ui_out_entry.type == FLASH_CMD){
-                flashCmd = ui_out_entry.data.flashCmd;
-            }else if(ui_out_entry.type == TRIG_CMD){
-                trigCmd = ui_out_entry.data.trigCmd;
-            }
-        }
     }
 
     return 0;

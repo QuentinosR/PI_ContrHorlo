@@ -40,6 +40,7 @@ void on_uart_rx() {
     }
 }
 
+//<!> No interrupt configured
 void init_uart(){
       // Set up our UART with a basic baud rate.
     uart_init(UART_ID, 2400);
@@ -63,26 +64,26 @@ void init_uart(){
     // Turn off FIFO's - we want to do this character by character
     uart_set_fifo_enabled(UART_ID, false);
 
+}
+
+//Set interrupt for the core which calls it
+void init_uart_interrupt(uart_callback_t cb){
+    uartCb = cb;
+
     // Set up a RX interrupt
     // We need to set up the handler first
     // Select correct interrupt for the UART we are USing
     int UART_IRQ = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
-
     // And set up and enable the interrupt handlers
     irq_set_exclusive_handler(UART_IRQ, on_uart_rx);
     irq_set_enabled(UART_IRQ, true);
 
     // Now enable the UART to send interrupts - RX only
     uart_set_irq_enables(UART_ID, true, false);
-
-    // OK, all set up.
-    // Lets send a basic string out, and then run a loop and wait for RX interrupts
-    // The handler will count them, but also reflect the incoming data back with a slight change!
-    //uart_puts(UART_ID, "\nHello, uart interrupts\n");
 }
 
 
-int hw_init(uart_callback_t cb){
+int hw_init(){
     stdio_init_all();
     
     gpio_init(TRIG_PIN);
@@ -94,7 +95,6 @@ int hw_init(uart_callback_t cb){
     gpio_put(LED_PIN, 0);
     printf("begin\n");
 
-    uartCb = cb;
     init_uart();
 
     return 0;
