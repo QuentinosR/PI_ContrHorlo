@@ -80,6 +80,51 @@ bool startFlash;
 volatile uint32_t timerHwFlashVal;
 volatile flash_cmd_t flashCmd;
 
+
+//Queue definition
+queue_t queue_ui_in;
+queue_t queue_ui_out;
+#define QUEUE_MESSAGE_SIZE 100
+#define NB_QUEUE_ENTRIES 10
+typedef enum queue_ui_in_type_t{
+    MARCHE=0,
+    TRIG_OFF_TIME,
+    FLASH_OFF_TIME,
+    STRING,
+    NB_TYPES
+} queue_ui_in_type_t;
+
+
+typedef union queue_ui_in_data_t{
+    double float64;
+    uint32_t uint32;
+    const char* str;
+} queue_ui_in_data_t;
+
+typedef struct 
+{
+    queue_ui_in_type_t type;
+    //char message[QUEUE_MESSAGE_SIZE];
+    queue_ui_in_data_t data;
+} queue_ui_in_entry_t;
+
+typedef struct 
+{
+    trigger_cmd_t cmd;
+} queue_ui_out_entry_t;
+
+//Messages
+const char messErrorModTrig[] = "Impossible to modify trigger off time!";
+
+
+void print_message(const char* data){
+    queue_ui_in_entry_t ui_in_entry;
+    ui_in_entry.type = STRING;
+    ui_in_entry.data.str = data;
+    queue_try_add(&queue_ui_in, &ui_in_entry);
+}
+
+
 int get_total_flash_duration(){
     int cptUs = 0;
     for(int i = 0; i < NB_FLASHS; i++){
@@ -171,6 +216,8 @@ static void timer_flash_callback(void){
 }
 
 
+
+
 //<-tFlashOn->            <-tFlashOn->          <-tFlashOn-> 
 //<-----tFlashPeriod----><-----tFlashPeriod---->
 //____________           ____________           ____________                               ____
@@ -205,6 +252,9 @@ void trig_SM_process(){
                 break;
         }
         trigCmd = TRIG_NONE; //Only for one action
+        if(ec == -1){
+            print_message(messErrorModTrig);
+        }
     }
 
     if(timTrigElapsedFlag){
@@ -300,30 +350,6 @@ int init(){
 
 }
 
-queue_t queue_ui_in;
-queue_t queue_ui_out;
-
-#define QUEUE_MESSAGE_SIZE 100
-#define NB_QUEUE_ENTRIES 10
-typedef enum queue_ui_in_data_t{
-    MARCHE=0,
-    MESSAGE,
-    NB_TYPES
-} queue_ui_in_type_t;
-
-typedef struct 
-{
-    queue_ui_in_type_t type;
-    double marche;
-    char message[QUEUE_MESSAGE_SIZE];
-} queue_ui_in_entry_t;
-
-typedef struct 
-{
-    trigger_cmd_t cmd;
-} queue_ui_out_entry_t;
-
-
 void process_core_1(){
     //Todo set UART interrupt to handle cmds
 
@@ -333,7 +359,9 @@ void process_core_1(){
     while(1){
         queue_remove_blocking(&queue_ui_in, &entry);
         if(entry.type == MARCHE){
-            printf("Marche : %f\n", entry.marche);
+            printf("Marche : %f\n", entry.data.float64);
+        }else if(entry.type == STRING){
+            printf("%s\n", entry.data.str);
         }
     }
 
@@ -345,18 +373,19 @@ int main()
     queue_init(&queue_ui_in, sizeof(queue_ui_in_entry_t), NB_QUEUE_ENTRIES);
     queue_init(&queue_ui_out, sizeof(queue_ui_out_entry_t), NB_QUEUE_ENTRIES);
 
-
     multicore_launch_core1(process_core_1);
 
     queue_ui_in_entry_t ui_in_entry;
-    ui_in_entry.marche = 30.20;
-    ui_in_entry.type = MARCHE;
+    const char test[] = "coucou!\n";
+    ui_in_entry.data.str = test;
+    ui_in_entry.type = STRING;
     queue_try_add(&queue_ui_in, &ui_in_entry);
 
 
     while(1){
         trig_SM_process();
         flash_SM_process();
+        //queue_try_add(&queue_ui_in, &ui_in_entry);
     }
 
     return 0;
