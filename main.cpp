@@ -104,7 +104,6 @@ typedef union queue_ui_in_data_t{
 typedef struct 
 {
     queue_ui_in_type_t type;
-    //char message[QUEUE_MESSAGE_SIZE];
     queue_ui_in_data_t data;
 } queue_ui_in_entry_t;
 
@@ -115,15 +114,28 @@ typedef struct
 
 //Messages
 const char messErrorModTrig[] = "Impossible to modify trigger off time!";
+const char messErrorModFlash[] = "Impossible to modify flash off time!";
 
 
-void print_message(const char* data){
+void ui_enqueue_data(void* data, queue_ui_in_type_t type){
     queue_ui_in_entry_t ui_in_entry;
-    ui_in_entry.type = STRING;
-    ui_in_entry.data.str = data;
+    ui_in_entry.type = type;
+
+    switch(type){
+        case MARCHE:
+            ui_in_entry.data.float64 = *(double*)data;
+            break;
+        case TRIG_OFF_TIME:
+        case FLASH_OFF_TIME:
+            ui_in_entry.data.uint32 = *(uint32_t*)data;
+            break;
+        case STRING:
+            ui_in_entry.data.str = (const char*) data;
+            break;
+    }
+   
     queue_try_add(&queue_ui_in, &ui_in_entry);
 }
-
 
 int get_total_flash_duration(){
     int cptUs = 0;
@@ -230,7 +242,8 @@ static void timer_flash_callback(void){
 
 
 void trig_SM_process(){
-    static int ec = 0;
+    int ec = 0xff;
+
     if(trigCmd != TRIG_NONE){ //Handle command
         switch(trigCmd){
             case TRIG_START:
@@ -252,8 +265,11 @@ void trig_SM_process(){
                 break;
         }
         trigCmd = TRIG_NONE; //Only for one action
+        if(ec == 0){
+            ui_enqueue_data((void*)&tTrigOff, TRIG_OFF_TIME);
+        }
         if(ec == -1){
-            print_message(messErrorModTrig);
+            ui_enqueue_data((void*)messErrorModTrig, STRING);
         }
     }
 
@@ -268,6 +284,7 @@ void trig_SM_process(){
             //<!> Handle command before setting trigger alarm.
             //<!> Otherwise, total flashs duration will be different than trigger. 
             if(flashCmd != LED_NONE){
+                ec = 0xff;
                 switch(flashCmd){
                     case LED_PERIOD_INC:
                         ec = flashs_and_trig_update(flashTimes[0][0] + FLASH_OFF_STEP_US);
@@ -281,6 +298,13 @@ void trig_SM_process(){
                         break;
                 }
                 flashCmd = LED_NONE; //Only for one action
+                
+                if(ec == 0){
+                    ui_enqueue_data((void*)&flashTimes[0][0], FLASH_OFF_TIME);
+                }
+                if(ec == -1){
+                    ui_enqueue_data((void*)messErrorModFlash, STRING);
+                }
             }
         }
 
@@ -359,9 +383,13 @@ void process_core_1(){
     while(1){
         queue_remove_blocking(&queue_ui_in, &entry);
         if(entry.type == MARCHE){
-            printf("Marche : %f\n", entry.data.float64);
+            printf("[LOG] Marche : %f\n", entry.data.float64);
         }else if(entry.type == STRING){
-            printf("%s\n", entry.data.str);
+            printf("[WARNING] %s\n", entry.data.str);
+        }else if(entry.type == TRIG_OFF_TIME){
+             printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
+        }else if(entry.type == FLASH_OFF_TIME){
+             printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
         }
     }
 
@@ -377,9 +405,8 @@ int main()
 
     queue_ui_in_entry_t ui_in_entry;
     const char test[] = "coucou!\n";
-    ui_in_entry.data.str = test;
-    ui_in_entry.type = STRING;
-    queue_try_add(&queue_ui_in, &ui_in_entry);
+
+    ui_enqueue_data((void*)test, STRING);
 
 
     while(1){
