@@ -10,14 +10,14 @@
 #if USE_TESTING_MODE
 #define CAMERA_EXPOSITION_TIME_US 1
 #define FLASH_ON_US 10
-#define TRIG_OFF_START_US 100
+#define TRIG_PERIOD_START_US 100
 #define FLASH_OFF_STEP_US 100
 #define TRIG_OFF_STEP_US 500
 
 #else
 #define CAMERA_EXPOSITION_TIME_US 19
 #define FLASH_ON_US 10000
-#define TRIG_OFF_START_US 100000
+#define TRIG_PERIOD_START_US 100000
 #define FLASH_OFF_STEP_US 10000
 #define TRIG_OFF_STEP_US 50000
 #endif
@@ -376,12 +376,13 @@ int init(){
     startFlash = false;
     flashCmd = LED_NONE;
 
-    tTrigOn = 0;
+    tTrigOn = 0; //<!> Don't modify it
 
     //Trigger
-    ec = trig_set_new_off_time(TRIG_OFF_START_US);
+    ec = trig_set_new_off_time(TRIG_PERIOD_START_US);
     if(ec != 0) return -1;
 
+    //Currently, ON Time = OFF Time
     ec = flashs_and_trig_update(FLASH_ON_US);
     if(ec != 0) return -1;
 
