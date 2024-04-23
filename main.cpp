@@ -24,7 +24,7 @@
 
 #define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
 
-#define CORRECTION_US 3
+#define CORRECTION_US 3 //Correction for jitter
 
 typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
@@ -196,7 +196,6 @@ int trig_set_new_off_time(int newtOff){
 }
 
 int trig_set_new_on_time(int newtOn){
-    newtOn += CORRECTION_US;
     //On time has a minimum possible value
     if(newtOn < TRIG_ON_MIN_US)
         newtOn = TRIG_ON_MIN_US;
@@ -229,7 +228,7 @@ int flashs_and_trig_update(int newtOffLed){
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
     //printf("%d\n", totalFlashDuration);
-    trig_set_new_on_time(totalFlashDuration);
+    trig_set_new_on_time(totalFlashDuration + CORRECTION_US); //Jitter is compensated by this correction
     return 0;
 }
 
