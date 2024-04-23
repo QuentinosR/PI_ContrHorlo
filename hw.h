@@ -20,8 +20,8 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
-#define TRIG_PIN      16
-#define LED_PIN       15
+#define TRIG_PIN      14
+#define LED_PIN       13
 
 typedef void (*uart_callback_t)(char);
 
