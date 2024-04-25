@@ -18,6 +18,13 @@ sudo ./setup.sh -i
 
 Reboot the computer.
 
+##Install OpenCV
+```
+sudo apt update
+sudo apt install libopencv-dev
+sudo ln -s /usr/include/opencv4/opencv2 /usr/include/opencv2
+```
+
 ## Configure Networks
 1. Go to the Network setting
 2. In the "Identity" tab, set MTU to 9000

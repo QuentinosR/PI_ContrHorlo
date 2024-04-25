@@ -1,3 +1,5 @@
+#include <opencv2/opencv.hpp> 
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -88,6 +90,11 @@ void * AcquisitionThread(SV_STREAM_HANDLE context)
 int main(int argc, char**argv)
 {
     printf("Initialisation...\n");
+    cv::Mat image = cv::imread("test.jpg"); 
+    cv::imshow("Image",image);
+    cv::waitKey(0);
+    return 0;
+
     bool isInited = InitSDK();
     if (!isInited)
     {
