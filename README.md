@@ -12,7 +12,7 @@ sudo apt install automake autoconf build-essential texinfo libtool libftdi-dev l
 Clone, build and install OpenOCD:
 
 ```bash
-cd ~
+cd /tmp/
 git clone https://github.com/raspberrypi/openocd.git --branch rp2040-v0.12.0 --depth=1 --no-single-branch
 cd openocd
 ./bootstrap
