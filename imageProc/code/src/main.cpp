@@ -56,17 +56,23 @@ void * AcquisitionThread(SV_STREAM_HANDLE context)
             printf("----------------------------------------------\n");
             
             char filename[1024];
-	    sprintf(filename, "image_%lld.raw", bufferInfo.iImageId);
+            sprintf(filename, "img/image_%lld.raw", bufferInfo.iImageId);
 
-	    FILE *fp = fopen(filename, "wb");
-	    
-	    printf("test to save\n");
+            FILE *fp = fopen(filename, "wb");
+            cv::Mat img(bufferInfo.iSizeY, bufferInfo.iSizeX, CV_8UC1, bufferInfo.pImagePtr);
 
-	    if(fp)
-	    {
-		fwrite(bufferInfo.pImagePtr, bufferInfo.iSizeX * bufferInfo.iSizeY, 1, fp);
-		fclose(fp);
-	    }
+            char filename_png[1024];
+            sprintf(filename_png, "img/image_%lld.png", bufferInfo.iImageId);
+
+            cv::imwrite(filename_png, img);
+            
+            printf("test to save\n");
+
+            if(fp)
+            {
+            fwrite(bufferInfo.pImagePtr, bufferInfo.iSizeX * bufferInfo.iSizeY, 1, fp);
+            fclose(fp);
+            }
 
             SVStreamQueueBuffer(hDS, hBuffer);
         }
@@ -89,11 +95,13 @@ void * AcquisitionThread(SV_STREAM_HANDLE context)
 
 int main(int argc, char**argv)
 {
+
     printf("Initialisation...\n");
+    /*
     cv::Mat image = cv::imread("test.jpg"); 
     cv::imshow("Image",image);
     cv::waitKey(0);
-    return 0;
+    */
 
     bool isInited = InitSDK();
     if (!isInited)
