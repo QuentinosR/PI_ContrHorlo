@@ -3,19 +3,16 @@
 
 typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
-    TRIG_START,
-    TRIG_STOP,
-    TRIG_OFF_TIME,
-    TRIG_OFF_TIME_SHIFT,  //Increase the period for one period only
-    TRIG_EXPO,
+    TRIG_ENABLE,
+    TRIG_OFF_TIME_SET,
+    TRIG_OFF_TIME_SHIFT_SET,  //Increase the period for one period only
+    TRIG_EXPO_SET,
     TRIG_NB_CMDS
 } trigger_cmd_t;
 
 
 typedef enum flash_cmd_t{
     FLASH_NONE = 0,
-    FLASH_PERIOD_INC,
-    FLASH_PERIOD_DEC,
     FLASH_OFF_TIME_SET,
     FLASH_ON_TIME_SET,
     FLASH_NB_CMDS
@@ -25,6 +22,7 @@ typedef enum flash_cmd_t{
 typedef enum queue_ui_in_type_t{
     LOG_NO_TYPE = 0,
     LOG_MARCHE,
+    LOG_TRIG_ENABLE,
     LOG_TRIG_OFF_TIME,
     LOG_TRIG_OFF_TIME_SHIFT,
     LOG_TRIG_EXPO,

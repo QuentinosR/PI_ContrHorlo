@@ -23,25 +23,22 @@
 
 //-- Exposure time --
 //-- Trigger --
-int tTrigOffSave;
 bool isTrigOffTmpUsed;
+bool tTrigEnabled;
 int tTrigOn;
 int tTrigOff;
 int tTrigMinExpTime;
-bool trigOutputState;
 volatile bool timTrigElapsedFlag;
 volatile uint32_t timerHwTrigVal;
-volatile trigger_cmd_t trigCmd; //Obligatory shared between cores
 
 //-- Led flashs --
 volatile bool timFlashElapsedFlag;
 uint32_t flashTimes[NB_FLASHS][2]; //[Off time][On time]
-int iCurrFlash;
-bool currFlashState;
-bool startFlash;
 volatile uint32_t timerHwFlashVal;
 
-volatile flash_cmd_t flashCmd; //Obligatory shared between cores
+//Obligatory shared between cores
+volatile trigger_cmd_t trigCmd; 
+volatile flash_cmd_t flashCmd;
 volatile int cmdVal;
 
 //Messages
@@ -136,28 +133,31 @@ static void timer_flash_callback(void){
     timFlashElapsedFlag = true;
 }
 
+int tTrigOffSave;
+bool trigOutputState;
+bool startFlash;
 void trig_SM_process(){
     int ec = 0xff;
     queue_ui_in_type_t ui_log_type = LOG_NO_TYPE;
 
     if(trigCmd != TRIG_NONE){ //Handle command
         switch(trigCmd){
-            case TRIG_START:
-                timer_trig_callback();
+            case TRIG_ENABLE:
+                tTrigEnabled = cmdVal == 1;
+                ec = 0;
+                ui_log_type = LOG_TRIG_ENABLE;
                 break;
-            case TRIG_STOP:
-                break;
-            case TRIG_OFF_TIME:
+            case TRIG_OFF_TIME_SET:
                 ec = trig_set_new_off_time(cmdVal);
                 ui_log_type = LOG_TRIG_OFF_TIME;
                 break;
-            case TRIG_OFF_TIME_SHIFT:
+            case TRIG_OFF_TIME_SHIFT_SET:
                 isTrigOffTmpUsed = true;
                 tTrigOffSave = tTrigOff;
                 ec = trig_set_new_off_time(tTrigOff + cmdVal);
                 ui_log_type = LOG_TRIG_OFF_TIME_SHIFT;
                 break;
-            case TRIG_EXPO:
+            case TRIG_EXPO_SET:
                 ec = trig_set_minimal_exposure_time(cmdVal);
                 ui_log_type = LOG_TRIG_EXPO;
                 break;
@@ -208,9 +208,11 @@ void trig_SM_process(){
         }
 
         int stateDuration = trigOutputState ? tTrigOn : tTrigOff;
-       
+
+
         alarm_in_US(ALARM_TRIG_NUM, ALARM_TRIG_IRQ, timer_trig_callback, timerHwTrigVal, stateDuration);
-        gpio_put(TRIG_PIN, trigOutputState); //takes ~ 1.7us. Not a problem due to camera trigger delay
+        if(tTrigEnabled)
+            gpio_put(TRIG_PIN, trigOutputState); //takes ~ 1.7us. Not a problem due to camera trigger delay
 
         if(isTrigOffTmpUsed && !trigOutputState){
             isTrigOffTmpUsed = false;
@@ -220,6 +222,8 @@ void trig_SM_process(){
 
 }
 
+int iCurrFlash;
+bool currFlashState;
 void flash_SM_process(){
     if(startFlash){
         startFlash = false;
@@ -238,7 +242,8 @@ void flash_SM_process(){
 
         //The last flash, has a off time of 0. So alarm setting function will automatically return.
         alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
-        gpio_put(LED_PIN, currFlashState);
+        if(tTrigEnabled)
+            gpio_put(LED_PIN, currFlashState);
 
     }
 }
@@ -257,6 +262,7 @@ int init(){
 
     tTrigOn = 0; //<!> Don't modify it
     tTrigMinExpTime = 0;
+    tTrigEnabled = false;
 
     //Trigger
     ec = trig_set_new_off_time(TRIG_PERIOD_START_US);
@@ -270,7 +276,9 @@ int init(){
     trigOutputState = false; //Begin to false
 
     timTrigElapsedFlag = false;
-    trigCmd = AUTO_START ? TRIG_START : TRIG_NONE;
+    trigCmd = TRIG_NONE;
+
+    timer_trig_callback();
 
     return 0;
 }

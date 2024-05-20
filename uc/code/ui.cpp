@@ -73,22 +73,20 @@ void cmd_handle(char c){
     }else if(strcmp(components[0], "trig") == 0){
 
         if(strcmp(components[1], "en") == 0){
-            if(val == 1)
-                trigCmd = TRIG_START;
-            else
-                trigCmd = TRIG_STOP;
-            printf("[CMD] set trig enable %d\n", trigCmd);
+            
+            trigCmd = TRIG_ENABLE;
+            printf("[CMD] set trig enable\n");
         }
         else if(strcmp(components[1], "off") == 0){
             printf("[CMD] set trig off\n");
-            trigCmd = TRIG_OFF_TIME;
+            trigCmd = TRIG_OFF_TIME_SET;
 
         } else if(strcmp(components[1], "shift") == 0){
             printf("[CMD] set trig shift\n");
-            trigCmd = TRIG_OFF_TIME_SHIFT;
+            trigCmd = TRIG_OFF_TIME_SHIFT_SET;
         }else if(strcmp(components[1], "expo") == 0){
             printf("[CMD] set trig minimal exposure time\n");
-            trigCmd = TRIG_EXPO;
+            trigCmd = TRIG_EXPO_SET;
         }
     }
     cmdBuffSize = 0;
@@ -110,6 +108,7 @@ void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
         case LOG_MARCHE:
             ui_in_entry.data.float64 = *(double*)data;
             break;
+        case LOG_TRIG_ENABLE:
         case LOG_TRIG_OFF_TIME:
         case LOG_TRIG_OFF_TIME_SHIFT:
         case LOG_FLASH_ON_TIME:
@@ -139,6 +138,8 @@ void ui_task(){
             printf("[LOG] Marche : %f\n", entry.data.float64);
         }else if(entry.type == LOG_STRING){
             printf("[WARNING] %s\n", entry.data.str);
+        }else if(entry.type == LOG_TRIG_ENABLE){
+             printf("[LOG] Trig state : %s\n", entry.data.uint32 == 1 ? "On" : "Off");
         }else if(entry.type == LOG_TRIG_OFF_TIME){
              printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
         }
