@@ -5,26 +5,12 @@
 
 #define NB_FLASHS 3
 
-#define USE_TESTING_MODE 1
 #define AUTO_START 1
 
-#if USE_TESTING_MODE
-#define CAMERA_EXPOSITION_TIME_US 19
-#define FLASH_ON_US 800
-//#define TRIG_PERIOD_START_US (1000000 / 8)
+#define FLASH_ON_START_US 800
 #define TRIG_PERIOD_START_US (1000000 / 8)
-#define FLASH_OFF_STEP_US 100
-#define TRIG_OFF_STEP_US (125000 / 2)
 
-#else
 #define CAMERA_EXPOSITION_TIME_US 19
-#define FLASH_ON_US 10000
-#define TRIG_PERIOD_START_US 100000
-#define FLASH_OFF_STEP_US 10000
-#define TRIG_OFF_STEP_US 50000
-
-#endif
-
 #define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
 
 #define CORRECTION_US 3 //Correction for jitter
@@ -271,7 +257,7 @@ int init(){
     if(ec != 0) return -1;
 
     //Currently, ON Time = OFF Time
-    ec = flashs_and_trig_update(FLASH_ON_US, FLASH_ON_US);
+    ec = flashs_and_trig_update(FLASH_ON_START_US, FLASH_ON_START_US);
     if(ec != 0) return -1;
 
     isTrigOffTmpUsed = false;

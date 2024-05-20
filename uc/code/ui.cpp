@@ -26,7 +26,7 @@ void cmd_handle(char c){
         return;
     
     cmdBuff[cmdBuffSize] = '\0';
-    printf("new cmd ! %s\n", cmdBuff);
+    printf("[CMD] new cmd : %s\n", cmdBuff);
 
     char *components[4]; // Array to hold the parsed components
     int index = 0;
@@ -56,7 +56,7 @@ void cmd_handle(char c){
     int val = atoi(pValue);
     cmdVal = val;
     cmdBuffSize = 0;
-    printf("value : %s, %d\n", pValue, val);
+    //printf("value : %s, %d\n", pValue, val);
 
 
     if(strcmp(components[0], "flash") == 0){
