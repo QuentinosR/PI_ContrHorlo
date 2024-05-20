@@ -151,6 +151,7 @@ static void timer_flash_callback(void){
 
 void trig_SM_process(){
     int ec = 0xff;
+    queue_ui_in_type_t ui_log_type = NO_TYPE;
 
     if(trigCmd != TRIG_NONE){ //Handle command
         switch(trigCmd){
@@ -196,22 +197,22 @@ void trig_SM_process(){
                 switch(flashCmd){
                     case LED_ON_TIME_SET:
                         ec = flashs_and_trig_update(flashTimes[0][0], cmdVal); //For the moment, all flashs have same period
-                        printf("hey ! \r\n");
+                        ui_log_type = FLASH_ON_TIME;
                         break;
                     case LED_OFF_TIME_SET:
                         ec = flashs_and_trig_update(cmdVal, flashTimes[0][1]); //For the moment, all flashs have same period
+                        ui_log_type = FLASH_OFF_TIME;
                         break;
                     default:
                         break;
                 }
-                flashCmd = LED_NONE; //Only for one action
                 
-                if(ec == 0){
-                    //ui_enqueue_data_print((void*)&flashTimes[0][0], FLASH_OFF_TIME);
-                }
-                if(ec == -1){
+                if(ec == 0)
+                    ui_enqueue_data_print((void*)&cmdVal, ui_log_type);
+                else if(ec == -1)
                     ui_enqueue_data_print((void*)messErrorModFlash, STRING);
-                }
+                
+                flashCmd = LED_NONE; //Only for one action
             }
         }
 

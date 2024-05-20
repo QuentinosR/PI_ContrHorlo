@@ -119,6 +119,7 @@ void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
             ui_in_entry.data.float64 = *(double*)data;
             break;
         case TRIG_OFF_TIME:
+        case FLASH_ON_TIME:
         case FLASH_OFF_TIME:
             ui_in_entry.data.uint32 = *(uint32_t*)data;
             break;
@@ -148,6 +149,8 @@ void ui_task(){
              printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
         }else if(entry.type == FLASH_OFF_TIME){
              printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
+        }else if(entry.type == FLASH_ON_TIME){
+             printf("[LOG] New flash on time : %dus\n", entry.data.uint32);
         }
     }
 

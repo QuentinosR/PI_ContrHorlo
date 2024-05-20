@@ -24,9 +24,11 @@ typedef enum flash_cmd_t{
 } flash_cmd_t;
 
 typedef enum queue_ui_in_type_t{
-    MARCHE=0,
+    NO_TYPE = 0,
+    MARCHE,
     TRIG_OFF_TIME,
     FLASH_OFF_TIME,
+    FLASH_ON_TIME,
     STRING,
     NB_TYPES
 } queue_ui_in_type_t;
