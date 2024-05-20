@@ -5,6 +5,7 @@ typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
     TRIG_START,
     TRIG_STOP,
+    TRIG_PERIOD_SET,
     TRIG_PERIOD_INC, //Increase the period by one step
     TRIG_PERIOD_DEC, //Decrease the period by one step
     TRIG_PERIOD_INC_ONE,  //Increase the period by one step for one period only
@@ -16,6 +17,8 @@ typedef enum flash_cmd_t{
     LED_NONE = 0,
     LED_PERIOD_INC,
     LED_PERIOD_DEC,
+    LED_OFF_TIME_SET,
+    LED_ON_TIME_SET,
     LED_NB_CMDS
 
 } flash_cmd_t;

@@ -48,6 +48,7 @@ bool startFlash;
 volatile uint32_t timerHwFlashVal;
 
 volatile flash_cmd_t flashCmd; //Obligatory shared between cores
+volatile int cmdVal;
 
 //Messages
 const char messErrorModTrig[] = "Impossible to modify trigger off time!";
@@ -71,6 +72,7 @@ int trig_set_new_off_time(int newtOff){
     return 0;
 }
 
+//Has never to be called by user. 
 int trig_set_new_on_time(int newtOn){
     //On time has a minimum possible value
     if(newtOn < TRIG_ON_MIN_US)
@@ -91,16 +93,26 @@ int flashs_set_new_off_time(int newtOff){
 
     for(int i = 0; i < NB_FLASHS; i++){
         flashTimes[i][0] = newtOff; //For the moment same value. 
-        flashTimes[i][1] = FLASH_ON_US; // Doesn't change.
     }
     flashTimes[NB_FLASHS - 1][0] = 0;
     return 0;
 }
+int flashs_set_new_on_time(int newtOn){
+    if(newtOn < 0)
+        return -1;
+
+    for(int i = 0; i < NB_FLASHS; i++){
+        flashTimes[i][1] = newtOn;
+    }
+    return 0;
+}
 
 //Only function that can be called on cmd
-int flashs_and_trig_update(int newtOffLed){
+int flashs_and_trig_update(int newtOffLed, int newtOnLed){
     int ec;
     ec = flashs_set_new_off_time(newtOffLed);
+    if(ec < 0) return -1;
+    ec = flashs_set_new_on_time(newtOnLed);
     if(ec < 0) return -1;
     int totalFlashDuration = get_total_flash_duration();
     //printf("%d\n", totalFlashDuration);
@@ -182,21 +194,20 @@ void trig_SM_process(){
             if(flashCmd != LED_NONE){
                 ec = 0xff;
                 switch(flashCmd){
-                    case LED_PERIOD_INC:
-                        ec = flashs_and_trig_update(flashTimes[0][0] + FLASH_OFF_STEP_US);
+                    case LED_ON_TIME_SET:
+                        ec = flashs_and_trig_update(flashTimes[0][0], cmdVal); //For the moment, all flashs have same period
+                        printf("hey ! \r\n");
                         break;
-
-                    case LED_PERIOD_DEC:
-                        ec = flashs_and_trig_update(flashTimes[0][0] - FLASH_OFF_STEP_US);
+                    case LED_OFF_TIME_SET:
+                        ec = flashs_and_trig_update(cmdVal, flashTimes[0][1]); //For the moment, all flashs have same period
                         break;
-
                     default:
                         break;
                 }
                 flashCmd = LED_NONE; //Only for one action
                 
                 if(ec == 0){
-                    ui_enqueue_data_print((void*)&flashTimes[0][0], FLASH_OFF_TIME);
+                    //ui_enqueue_data_print((void*)&flashTimes[0][0], FLASH_OFF_TIME);
                 }
                 if(ec == -1){
                     ui_enqueue_data_print((void*)messErrorModFlash, STRING);
@@ -259,7 +270,7 @@ int init(){
     if(ec != 0) return -1;
 
     //Currently, ON Time = OFF Time
-    ec = flashs_and_trig_update(FLASH_ON_US);
+    ec = flashs_and_trig_update(FLASH_ON_US, FLASH_ON_US);
     if(ec != 0) return -1;
 
     isTrigOffTmpUsed = false;

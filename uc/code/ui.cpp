@@ -10,6 +10,7 @@
 queue_t queue_ui_in;
 extern trigger_cmd_t trigCmd;
 extern flash_cmd_t flashCmd;
+extern int cmdVal;
 
 #define QUEUE_MESSAGE_SIZE 100
 #define NB_QUEUE_ENTRIES 10
@@ -65,31 +66,41 @@ void cmd_handle(char c){
         return;
     }
    
-    for(int i = 0; i < index; i++){
+    /*for(int i = 0; i < index; i++){
         printf("sub element : %s\n", components[i]);
-    }
+    }*/
+    //Check, can not exist : trig.start
     int val = atoi(pValue);
-    printf("value : %s, %d\n", pValue, val);
+    cmdVal = val;
     cmdBuffSize = 0;
+    printf("value : %s, %d\n", pValue, val);
 
+
+    if(strcmp(components[0], "flash") == 0){
+
+        if(strcmp(components[1], "on") == 0){
+            printf("flash on !\n");
+            flashCmd = LED_ON_TIME_SET;
+
+        }else if(strcmp(components[1], "off") == 0){
+            printf("flash off !\n");
+            flashCmd = LED_OFF_TIME_SET;
+        }
+
+    }else if(strcmp(components[0], "trig") == 0){
+
+        if(strcmp(components[1], "en") == 0){
+            printf("trig en !\n");
+        }
+        else if(strcmp(components[1], "off") == 0){
+            printf("trig off !\n");
+
+        } else if(strcmp(components[1], "shift") == 0){
+            printf("trig shift !\n");
+        }
+    }
+    cmdBuffSize = 0;
     return;
-
-    for(uint8_t i = 0; i < TRIG_NB_CMDS; i++){
-        if(trigger_cmd_txt[i] == c){
-            trigCmd = (trigger_cmd_t) i;
-            //printf("trigger cmd : %u\n", trigCmd);
-            return;
-        }
-    }
-
-    for(uint8_t i = 0; i < LED_NB_CMDS; i++){
-        flash_cmd_t cmd = (flash_cmd_t) i;
-        if(flash_cmd_txt[i] == c){
-            flashCmd = (flash_cmd_t) i;
-            //printf("flash cmd : %u\n", flashCmd);
-            return;
-        }
-    }
     //uart_putc(UART_ID, c);
 }
 
