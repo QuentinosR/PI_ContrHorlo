@@ -1,5 +1,7 @@
+#include "stdlib.h"
 #include "hw.h"
 #include "ui.h"
+#include <string.h>
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
 
@@ -28,7 +30,50 @@ const char trigger_cmd_txt[TRIG_NB_CMDS]{
 
 };
 
+
+char cmdBuff[128];
+int cmdBuffSize = 0;
+
 void cmd_handle(char c){
+    cmdBuff[cmdBuffSize++] = c;
+    printf("%d\n", c);
+    if(c != ';')
+        return;
+    
+    cmdBuff[cmdBuffSize] = '\0';
+    printf("new cmd ! %s\n", cmdBuff);
+
+    char *components[4]; // Array to hold the parsed components
+    int index = 0;
+
+    char* pEndHeader = strchr(cmdBuff, ':');
+    if(pEndHeader == NULL){
+        cmdBuffSize = 0;
+        return;
+    }
+    *pEndHeader = '\0';
+   
+    char *sub_token = strtok(cmdBuff, ".");
+    while (sub_token != NULL) {
+        components[index++] = sub_token;
+        sub_token = strtok(NULL, ".");
+    }
+
+    char* pValue = strtok(pEndHeader + 1, ";");
+    if(pValue == NULL){
+        cmdBuffSize = 0;
+        return;
+    }
+   
+    for(int i = 0; i < index; i++){
+        printf("sub element : %s\n", components[i]);
+    }
+    int val = atoi(pValue);
+    printf("value : %s, %d\n", pValue, val);
+    cmdBuffSize = 0;
+
+    return;
+
     for(uint8_t i = 0; i < TRIG_NB_CMDS; i++){
         if(trigger_cmd_txt[i] == c){
             trigCmd = (trigger_cmd_t) i;
@@ -52,6 +97,8 @@ void ui_init(){
     queue_init(&queue_ui_in, sizeof(queue_ui_in_entry_t), NB_QUEUE_ENTRIES);
 }
 
+//It's safer to copy data in order to avoid concurrency issues.
+//string has to be const.
 void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
     queue_ui_in_entry_t ui_in_entry;
     ui_in_entry.type = type;
