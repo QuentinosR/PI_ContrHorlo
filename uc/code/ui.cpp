@@ -15,22 +15,6 @@ extern int cmdVal;
 #define QUEUE_MESSAGE_SIZE 100
 #define NB_QUEUE_ENTRIES 10
 
-const char flash_cmd_txt[TRIG_NB_CMDS]{
-    'X',
-    'y',
-    'z',
-    'o',
-};
-const char trigger_cmd_txt[TRIG_NB_CMDS]{
-    'X',
-    's',
-    'e',
-    'i',
-    'd',
-    'r',
-
-};
-
 
 char cmdBuff[128];
 int cmdBuffSize = 0;
@@ -80,23 +64,29 @@ void cmd_handle(char c){
 
         if(strcmp(components[1], "on") == 0){
             printf("flash on !\n");
-            flashCmd = LED_ON_TIME_SET;
+            flashCmd = FLASH_ON_TIME_SET;
 
         }else if(strcmp(components[1], "off") == 0){
             printf("flash off !\n");
-            flashCmd = LED_OFF_TIME_SET;
+            flashCmd = FLASH_OFF_TIME_SET;
         }
 
     }else if(strcmp(components[0], "trig") == 0){
 
         if(strcmp(components[1], "en") == 0){
-            printf("trig en !\n");
+            if(val == 1)
+                trigCmd = TRIG_START;
+            else
+                trigCmd = TRIG_STOP;
+            printf("trig state %d!\n", trigCmd);
         }
         else if(strcmp(components[1], "off") == 0){
             printf("trig off !\n");
+            trigCmd = TRIG_OFF_TIME;
 
         } else if(strcmp(components[1], "shift") == 0){
             printf("trig shift !\n");
+            trigCmd = TRIG_OFF_TIME_SHIFT;
         }
     }
     cmdBuffSize = 0;
@@ -115,15 +105,16 @@ void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
     ui_in_entry.type = type;
 
     switch(type){
-        case MARCHE:
+        case LOG_MARCHE:
             ui_in_entry.data.float64 = *(double*)data;
             break;
-        case TRIG_OFF_TIME:
-        case FLASH_ON_TIME:
-        case FLASH_OFF_TIME:
+        case LOG_TRIG_OFF_TIME:
+        case LOG_TRIG_OFF_TIME_SHIFT:
+        case LOG_FLASH_ON_TIME:
+        case LOG_FLASH_OFF_TIME:
             ui_in_entry.data.uint32 = *(uint32_t*)data;
             break;
-        case STRING:
+        case LOG_STRING:
             ui_in_entry.data.str = (const char*) data;
             break;
     }
@@ -141,15 +132,18 @@ void ui_task(){
     
     while(1){
         queue_remove_blocking(&queue_ui_in, &entry);
-        if(entry.type == MARCHE){
+        if(entry.type == LOG_MARCHE){
             printf("[LOG] Marche : %f\n", entry.data.float64);
-        }else if(entry.type == STRING){
+        }else if(entry.type == LOG_STRING){
             printf("[WARNING] %s\n", entry.data.str);
-        }else if(entry.type == TRIG_OFF_TIME){
+        }else if(entry.type == LOG_TRIG_OFF_TIME){
              printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
-        }else if(entry.type == FLASH_OFF_TIME){
+        }
+        else if(entry.type == LOG_TRIG_OFF_TIME_SHIFT){
+             printf("[LOG] trig off time for one period only : %dus\n", entry.data.uint32);
+        }else if(entry.type == LOG_FLASH_OFF_TIME){
              printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
-        }else if(entry.type == FLASH_ON_TIME){
+        }else if(entry.type == LOG_FLASH_ON_TIME){
              printf("[LOG] New flash on time : %dus\n", entry.data.uint32);
         }
     }

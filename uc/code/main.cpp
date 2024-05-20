@@ -151,34 +151,34 @@ static void timer_flash_callback(void){
 
 void trig_SM_process(){
     int ec = 0xff;
-    queue_ui_in_type_t ui_log_type = NO_TYPE;
+    queue_ui_in_type_t ui_log_type = LOG_NO_TYPE;
 
     if(trigCmd != TRIG_NONE){ //Handle command
         switch(trigCmd){
             case TRIG_START:
                 timer_trig_callback();
                 break;
-
-            case TRIG_PERIOD_DEC:
-                ec = trig_set_new_off_time(tTrigOff - TRIG_OFF_STEP_US);
+            case TRIG_STOP:
                 break;
-            case TRIG_PERIOD_INC_ONE:
+            case TRIG_OFF_TIME:
+                ec = trig_set_new_off_time(cmdVal);
+                ui_log_type = LOG_TRIG_OFF_TIME;
+                break;
+            case TRIG_OFF_TIME_SHIFT:
                 isTrigOffTmpUsed = true;
                 tTrigOffSave = tTrigOff;
-            case TRIG_PERIOD_INC:
-                ec = trig_set_new_off_time(tTrigOff + TRIG_OFF_STEP_US);
+                ec = trig_set_new_off_time(tTrigOff + cmdVal);
+                ui_log_type = LOG_TRIG_OFF_TIME_SHIFT;
                 break;
-
-
             default:
                 break;
         }
         trigCmd = TRIG_NONE; //Only for one action
         if(ec == 0){
-            ui_enqueue_data_print((void*)&tTrigOff, TRIG_OFF_TIME);
+            ui_enqueue_data_print((void*)&tTrigOff, ui_log_type);
         }
         if(ec == -1){
-            ui_enqueue_data_print((void*)messErrorModTrig, STRING);
+            ui_enqueue_data_print((void*)messErrorModTrig, LOG_STRING);
         }
     }
 
@@ -192,16 +192,16 @@ void trig_SM_process(){
 
             //<!> Handle command before setting trigger alarm.
             //<!> Otherwise, total flashs duration will be different than trigger. 
-            if(flashCmd != LED_NONE){
+            if(flashCmd != FLASH_NONE){
                 ec = 0xff;
                 switch(flashCmd){
-                    case LED_ON_TIME_SET:
+                    case FLASH_ON_TIME_SET:
                         ec = flashs_and_trig_update(flashTimes[0][0], cmdVal); //For the moment, all flashs have same period
-                        ui_log_type = FLASH_ON_TIME;
+                        ui_log_type = LOG_FLASH_ON_TIME;
                         break;
-                    case LED_OFF_TIME_SET:
+                    case FLASH_OFF_TIME_SET:
                         ec = flashs_and_trig_update(cmdVal, flashTimes[0][1]); //For the moment, all flashs have same period
-                        ui_log_type = FLASH_OFF_TIME;
+                        ui_log_type = LOG_FLASH_OFF_TIME;
                         break;
                     default:
                         break;
@@ -210,9 +210,9 @@ void trig_SM_process(){
                 if(ec == 0)
                     ui_enqueue_data_print((void*)&cmdVal, ui_log_type);
                 else if(ec == -1)
-                    ui_enqueue_data_print((void*)messErrorModFlash, STRING);
+                    ui_enqueue_data_print((void*)messErrorModFlash, LOG_STRING);
                 
-                flashCmd = LED_NONE; //Only for one action
+                flashCmd = FLASH_NONE; //Only for one action
             }
         }
 
@@ -262,7 +262,7 @@ int init(){
     timFlashElapsedFlag = false;
     currFlashState = false; //Begin to false
     startFlash = false;
-    flashCmd = LED_NONE;
+    flashCmd = FLASH_NONE;
 
     tTrigOn = 0; //<!> Don't modify it
 
@@ -294,7 +294,7 @@ int main()
     queue_ui_in_entry_t ui_in_entry;
     const char test[] = "coucou!\n";
 
-    ui_enqueue_data_print((void*)test, STRING);
+    ui_enqueue_data_print((void*)test, LOG_STRING);
 
     while(1){
         trig_SM_process();

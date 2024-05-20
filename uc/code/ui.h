@@ -5,31 +5,30 @@ typedef enum trigger_cmd_t{
     TRIG_NONE = 0,
     TRIG_START,
     TRIG_STOP,
-    TRIG_PERIOD_SET,
-    TRIG_PERIOD_INC, //Increase the period by one step
-    TRIG_PERIOD_DEC, //Decrease the period by one step
-    TRIG_PERIOD_INC_ONE,  //Increase the period by one step for one period only
+    TRIG_OFF_TIME,
+    TRIG_OFF_TIME_SHIFT,  //Increase the period for one period only
     TRIG_NB_CMDS
 } trigger_cmd_t;
 
 
 typedef enum flash_cmd_t{
-    LED_NONE = 0,
-    LED_PERIOD_INC,
-    LED_PERIOD_DEC,
-    LED_OFF_TIME_SET,
-    LED_ON_TIME_SET,
-    LED_NB_CMDS
+    FLASH_NONE = 0,
+    FLASH_PERIOD_INC,
+    FLASH_PERIOD_DEC,
+    FLASH_OFF_TIME_SET,
+    FLASH_ON_TIME_SET,
+    FLASH_NB_CMDS
 
 } flash_cmd_t;
 
 typedef enum queue_ui_in_type_t{
-    NO_TYPE = 0,
-    MARCHE,
-    TRIG_OFF_TIME,
-    FLASH_OFF_TIME,
-    FLASH_ON_TIME,
-    STRING,
+    LOG_NO_TYPE = 0,
+    LOG_MARCHE,
+    LOG_TRIG_OFF_TIME,
+    LOG_TRIG_OFF_TIME_SHIFT,
+    LOG_FLASH_OFF_TIME,
+    LOG_FLASH_ON_TIME,
+    LOG_STRING,
     NB_TYPES
 } queue_ui_in_type_t;
 
