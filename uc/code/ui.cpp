@@ -53,7 +53,6 @@ void cmd_handle(char c){
     /*for(int i = 0; i < index; i++){
         printf("sub element : %s\n", components[i]);
     }*/
-    //Check, can not exist : trig.start
     int val = atoi(pValue);
     cmdVal = val;
     cmdBuffSize = 0;
@@ -63,11 +62,11 @@ void cmd_handle(char c){
     if(strcmp(components[0], "flash") == 0){
 
         if(strcmp(components[1], "on") == 0){
-            printf("flash on !\n");
+            printf("[CMD] set flash on\n");
             flashCmd = FLASH_ON_TIME_SET;
 
         }else if(strcmp(components[1], "off") == 0){
-            printf("flash off !\n");
+            printf("[CMD] set flash off\n");
             flashCmd = FLASH_OFF_TIME_SET;
         }
 
@@ -78,14 +77,14 @@ void cmd_handle(char c){
                 trigCmd = TRIG_START;
             else
                 trigCmd = TRIG_STOP;
-            printf("trig state %d!\n", trigCmd);
+            printf("[CMD] set trig enable %d\n", trigCmd);
         }
         else if(strcmp(components[1], "off") == 0){
-            printf("trig off !\n");
+            printf("[CMD] set trig off\n");
             trigCmd = TRIG_OFF_TIME;
 
         } else if(strcmp(components[1], "shift") == 0){
-            printf("trig shift !\n");
+            printf("[CMD] set trig shift\n");
             trigCmd = TRIG_OFF_TIME_SHIFT;
         }
     }
@@ -140,7 +139,7 @@ void ui_task(){
              printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
         }
         else if(entry.type == LOG_TRIG_OFF_TIME_SHIFT){
-             printf("[LOG] trig off time for one period only : %dus\n", entry.data.uint32);
+             printf("[LOG] Trig off time for one period only : %dus\n", entry.data.uint32);
         }else if(entry.type == LOG_FLASH_OFF_TIME){
              printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
         }else if(entry.type == LOG_FLASH_ON_TIME){
