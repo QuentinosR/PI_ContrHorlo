@@ -7,6 +7,7 @@ typedef enum trigger_cmd_t{
     TRIG_STOP,
     TRIG_OFF_TIME,
     TRIG_OFF_TIME_SHIFT,  //Increase the period for one period only
+    TRIG_EXPO,
     TRIG_NB_CMDS
 } trigger_cmd_t;
 
@@ -26,6 +27,7 @@ typedef enum queue_ui_in_type_t{
     LOG_MARCHE,
     LOG_TRIG_OFF_TIME,
     LOG_TRIG_OFF_TIME_SHIFT,
+    LOG_TRIG_EXPO,
     LOG_FLASH_OFF_TIME,
     LOG_FLASH_ON_TIME,
     LOG_STRING,

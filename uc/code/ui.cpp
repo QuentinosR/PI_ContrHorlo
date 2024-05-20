@@ -5,9 +5,9 @@
 #include "pico/multicore.h"
 #include "pico/util/queue.h"
 
-//Queue definition
-//Impossible to have queue out to handle command because queue_remove takes too much time.
 queue_t queue_ui_in;
+//extern is not the cleanest way. Unfortunatly, using a queue to handle commands will delay a lot
+//the signal generation.
 extern trigger_cmd_t trigCmd;
 extern flash_cmd_t flashCmd;
 extern int cmdVal;
@@ -86,6 +86,9 @@ void cmd_handle(char c){
         } else if(strcmp(components[1], "shift") == 0){
             printf("[CMD] set trig shift\n");
             trigCmd = TRIG_OFF_TIME_SHIFT;
+        }else if(strcmp(components[1], "expo") == 0){
+            printf("[CMD] set trig minimal exposure time\n");
+            trigCmd = TRIG_EXPO;
         }
     }
     cmdBuffSize = 0;
@@ -111,6 +114,7 @@ void ui_enqueue_data_print(void* data, queue_ui_in_type_t type){
         case LOG_TRIG_OFF_TIME_SHIFT:
         case LOG_FLASH_ON_TIME:
         case LOG_FLASH_OFF_TIME:
+        case LOG_TRIG_EXPO:
             ui_in_entry.data.uint32 = *(uint32_t*)data;
             break;
         case LOG_STRING:
@@ -139,7 +143,9 @@ void ui_task(){
              printf("[LOG] New trig off time : %dus\n", entry.data.uint32);
         }
         else if(entry.type == LOG_TRIG_OFF_TIME_SHIFT){
-             printf("[LOG] Trig off time for one period only : %dus\n", entry.data.uint32);
+             printf("[LOG] Shift done for one period only : %dus\n", entry.data.uint32);
+        }else if(entry.type == LOG_TRIG_EXPO){
+             printf("[LOG] New minimum exposure time : %dus\n", entry.data.uint32);
         }else if(entry.type == LOG_FLASH_OFF_TIME){
              printf("[LOG] New flash off time : %dus\n", entry.data.uint32);
         }else if(entry.type == LOG_FLASH_ON_TIME){

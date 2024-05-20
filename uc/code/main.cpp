@@ -4,22 +4,30 @@
 #include "pico/util/queue.h"
 
 #define NB_FLASHS 3
-
 #define AUTO_START 1
-
 #define FLASH_ON_START_US 800
 #define TRIG_PERIOD_START_US (1000000 / 8)
-
 #define CAMERA_EXPOSITION_TIME_US 19
-#define TRIG_ON_MIN_US (CAMERA_EXPOSITION_TIME_US + 1) //+1 for safety
-
+#define TRIG_ON_MIN_US(cameraMinExpTime) (cameraMinExpTime + 1) //+1 for safety
 #define CORRECTION_US 3 //Correction for jitter
 
+//<-tFlashOn->            <-tFlashOn->          <-tFlashOn-> 
+//<-----tFlashPeriod----><-----tFlashPeriod---->
+//____________           ____________           ____________                               ____
+//|          |___________|          |___________|          |_______________________________|...
+
+// <-----------------------tTrigOn------------------------>
+//<---------------------------------------tTrigPeriod------------------------------------->
+//__________________________________________________________                               ____
+//|                                                        |_______________________________|...
+
+//-- Exposure time --
 //-- Trigger --
 int tTrigOffSave;
 bool isTrigOffTmpUsed;
 int tTrigOn;
 int tTrigOff;
+int tTrigMinExpTime;
 bool trigOutputState;
 volatile bool timTrigElapsedFlag;
 volatile uint32_t timerHwTrigVal;
@@ -49,6 +57,14 @@ int get_total_flash_duration(){
     return cptUs;
 }
 
+int trig_set_minimal_exposure_time(int expoTime){
+    if(expoTime < 0)
+        return -1;
+
+    tTrigMinExpTime = expoTime + 1;
+    return 0;
+}
+
 //Return -1 on illegal value
 int trig_set_new_off_time(int newtOff){
     if(newtOff < 0)
@@ -61,8 +77,8 @@ int trig_set_new_off_time(int newtOff){
 //Has never to be called by user. 
 int trig_set_new_on_time(int newtOn){
     //On time has a minimum possible value
-    if(newtOn < TRIG_ON_MIN_US)
-        newtOn = TRIG_ON_MIN_US;
+    if(newtOn < tTrigMinExpTime)
+        newtOn = tTrigMinExpTime;
 
     int diffTime = newtOn - tTrigOn;
 
@@ -106,7 +122,6 @@ int flashs_and_trig_update(int newtOffLed, int newtOnLed){
     return 0;
 }
 
-
 static void timer_trig_callback(void) {
     timerHwTrigVal = get_hw_timer_val();
     // Clear the alarm irq
@@ -120,20 +135,6 @@ static void timer_flash_callback(void){
     hw_clear_bits(&timer_hw->intr, 1u << ALARM_FLASH_NUM);
     timFlashElapsedFlag = true;
 }
-
-
-
-
-//<-tFlashOn->            <-tFlashOn->          <-tFlashOn-> 
-//<-----tFlashPeriod----><-----tFlashPeriod---->
-//____________           ____________           ____________                               ____
-//|          |___________|          |___________|          |_______________________________|...
-
-// <-----------------------tTrigOn------------------------>
-//<---------------------------------------tTrigPeriod------------------------------------->
-//__________________________________________________________                               ____
-//|                                                        |_______________________________|...
-
 
 void trig_SM_process(){
     int ec = 0xff;
@@ -156,12 +157,16 @@ void trig_SM_process(){
                 ec = trig_set_new_off_time(tTrigOff + cmdVal);
                 ui_log_type = LOG_TRIG_OFF_TIME_SHIFT;
                 break;
+            case TRIG_EXPO:
+                ec = trig_set_minimal_exposure_time(cmdVal);
+                ui_log_type = LOG_TRIG_EXPO;
+                break;
             default:
                 break;
         }
         trigCmd = TRIG_NONE; //Only for one action
         if(ec == 0){
-            ui_enqueue_data_print((void*)&tTrigOff, ui_log_type);
+            ui_enqueue_data_print((void*)&cmdVal, ui_log_type);
         }
         if(ec == -1){
             ui_enqueue_data_print((void*)messErrorModTrig, LOG_STRING);
@@ -251,6 +256,7 @@ int init(){
     flashCmd = FLASH_NONE;
 
     tTrigOn = 0; //<!> Don't modify it
+    tTrigMinExpTime = 0;
 
     //Trigger
     ec = trig_set_new_off_time(TRIG_PERIOD_START_US);
@@ -267,9 +273,7 @@ int init(){
     trigCmd = AUTO_START ? TRIG_START : TRIG_NONE;
 
     return 0;
-
 }
-
 
 int main()
 {
