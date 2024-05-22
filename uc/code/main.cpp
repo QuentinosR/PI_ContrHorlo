@@ -244,7 +244,6 @@ void flash_SM_process(){
         alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
         if(tTrigEnabled)
             gpio_put(LED_PIN, currFlashState);
-
     }
 }
 
