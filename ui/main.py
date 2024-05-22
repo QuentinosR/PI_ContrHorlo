@@ -1,20 +1,28 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QPushButton
 from PyQt5.QtGui import QPalette, QColor
 import serial
 
-serialPico = None
+class Flasher():
+    def __init__(self, uart_dev, baudrate):
+        self.ser = serial.Serial(uart_dev, baudrate)
 
-def send_cmd(serial, cmd):
-    for c in cmd:
-        serial.write(c.encode())
-    
-    serial.write(";".encode())
-    
-    s = serialPico.read(120)
-    print(s.decode())
+    def _send_cmd(self, cmd):
+        for c in cmd:
+            self.ser.write(c.encode())
+
+        self.ser.write(";".encode())
+
+        s = self.ser.read(120)
+        return s.decode()
+    def on(self):
+        self._send_cmd("trig.en:1;")
+    def off(self):
+        self._send_cmd("trig.en:0;")
+
+flasher = Flasher('/dev/ttyACM0', 115200)
 
 class Color(QWidget):
 
@@ -33,23 +41,32 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("UI Flasher")
         self.setGeometry(100, 100, 280, 80)
 
-
         layout = QHBoxLayout()
 
+        self.button = QPushButton("On", self)
+        self.button.setGeometry(200, 150, 100, 40)
+        self.button.setCheckable(True)
+        self.button.clicked.connect(self.on_button_clicked)
+        
+        layout.addWidget(self.button)
         layout.addWidget(Color('red'))
         layout.addWidget(Color('green'))
         layout.addWidget(Color('blue'))
 
+
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+    
+    def on_button_clicked(self):
+        if self.button.isChecked():
+            flasher.on()
+            self.button.setText("Off")
+        else:
+            flasher.off()
+            self.button.setText("On")
 
-if __name__ == "__main__":
-    serialPico = serial.Serial('/dev/ttyACM0', 115200)
-    send_cmd(serialPico, "trig.en:0;")
-    serialPico.close()
-    exit(0)
-
+if __name__ == "__main__": 
     app = QApplication(sys.argv)
 
     window = MainWindow()
