@@ -30,7 +30,7 @@ class Flasher():
         self._send_cmd("flash.off:" + str(val) +";")
 
 
-flasher = Flasher('/dev/ttyACM1', 115200)
+flasher = Flasher('/dev/ttyACM0', 115200)
 
 class OneTimeEvent(QWidget):
     def __init__(self, text, cb_parent_click):
@@ -81,7 +81,7 @@ class Slider(QWidget):
 
         self.text = QLabel("", self)
         self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.update_text(default) 
+        self.cb(default)
 
         self.field = QLineEdit()
         self.field.setFixedWidth(75)
@@ -113,9 +113,9 @@ class MainWindow(QMainWindow):
         self.on_button.setCheckable(True)
         self.on_button.clicked.connect(self.on_button_clicked)
 
-        self.trig_off_sl = Slider('Trig off time (us)', self.trig_off_sl_changed, 1000, 1000000, 100000)
-        self.flash_off_sl = Slider('Flash off time (us)', self.flash_off_sl_changed, 1, 100000, 10000)
-        self.flash_on_sl = Slider('Flash on time (us)', self.flash_on_sl_changed, 1, 100000, 10000)
+        self.trig_off_sl = Slider('Trig off time (us)', self.trig_off_sl_changed, 1000, 1000000, 20000)
+        self.flash_off_sl = Slider('Flash off time (us)', self.flash_off_sl_changed, 1, 100000, 500)
+        self.flash_on_sl = Slider('Flash on time (us)', self.flash_on_sl_changed, 1, 100000, 2000)
         self.trig_shift_ote = OneTimeEvent('Trig shift time (us)', self.trig_shift_changed)
 
         layout.addWidget(self.on_button)
