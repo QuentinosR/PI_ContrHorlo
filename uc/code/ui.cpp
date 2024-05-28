@@ -11,6 +11,7 @@ queue_t queue_ui_in;
 extern trigger_cmd_t trigCmd;
 extern flash_cmd_t flashCmd;
 extern int cmdVal;
+extern mutex_t mutexCmd;
 
 #define QUEUE_MESSAGE_SIZE 100
 #define NB_QUEUE_ENTRIES 10
@@ -54,10 +55,9 @@ void cmd_handle(char c){
         printf("sub element : %s\n", components[i]);
     }*/
     int val = atoi(pValue);
+    mutex_enter_blocking(&mutexCmd);
     cmdVal = val;
-    cmdBuffSize = 0;
     //printf("value : %s, %d\n", pValue, val);
-
 
     if(strcmp(components[0], "flash") == 0){
 
@@ -89,6 +89,7 @@ void cmd_handle(char c){
             trigCmd = TRIG_EXPO_SET;
         }
     }
+    mutex_exit(&mutexCmd);
     cmdBuffSize = 0;
     return;
     //uart_putc(UART_ID, c);
