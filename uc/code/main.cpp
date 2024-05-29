@@ -339,7 +339,7 @@ int main()
     multicore_launch_core1(ui_task);
 
     queue_ui_in_entry_t ui_in_entry;
-    const char test[] = "coucou!\n";
+    const char test[] = "Flasher for PI!\n";
 
     ui_enqueue_data_print((void *)test, LOG_STRING);
 
