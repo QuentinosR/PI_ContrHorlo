@@ -4,10 +4,8 @@
 #include "pico/util/queue.h"
 
 #define NB_FLASHS 3
-#define AUTO_START 1
 #define FLASH_ON_START_US 800
 #define TRIG_PERIOD_START_US (1000000 / 8)
-#define CAMERA_EXPOSITION_TIME_US 19
 #define TRIG_ON_MIN_US(cameraMinExpTime) (cameraMinExpTime + 1) //+1 for safety
 #define CORRECTION_US 3                                         // Correction for jitter
 
