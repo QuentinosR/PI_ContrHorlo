@@ -164,7 +164,6 @@ void trig_SM_process()
     int ec = 0xff;
     int cmdValSec = 0;
     queue_ui_in_type_t ui_log_type = LOG_NO_TYPE;
-
     if (timTrigElapsedFlag)
     {
         timTrigElapsedFlag = false;
@@ -173,10 +172,12 @@ void trig_SM_process()
         // Beginning of high state -> Beginning of flash.
         if (trigOutputState)
         {
-            startFlash = true;
-
+            startFlash = true; //Indicate to start flashs
+            
+            //Commands are handled before trigger starting.
+            //Handle only if mutex pass. Otherwise, skip, no delay is wanted.
             if (trigCmd != TRIG_NONE)
-            { // Handle command
+            {
                 bool mutexOwn = mutex_try_enter(&mutexCmd, NULL);
                 if(mutexOwn){
                     cmdValSec = cmdVal;
