@@ -64,6 +64,38 @@ class OneTimeEvent(QWidget):
         self.update_text(val)
         self.parent_cb(val)
 
+class ExposureTime(QWidget):
+    def __init__(self, text, cb_parent_click):
+        super(OneTimeEvent, self).__init__()
+        self.text_val = text
+        self.parent_cb = cb_parent_click
+
+        self.setMaximumHeight(100)
+    
+        self.text = QLabel("", self)
+        self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.field = QLineEdit()
+        self.field.setFixedWidth(75)
+
+        self.button = QPushButton('Send one time')
+        self.button.clicked.connect(self.cb_button) 
+        self.update_text("0")
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.text)
+        layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.button)
+        self.setLayout(layout)
+
+    def update_text(self, new_val):
+        self.text.setText(self.text_val + ": " + str(new_val))
+
+    def cb_button(self):
+        val = self.field.text()
+        self.update_text(val)
+        self.parent_cb(val)
+
 class Slider(QWidget):
 
     def __init__(self, text, cb_parent_val_changed, min, max, default):

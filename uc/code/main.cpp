@@ -190,7 +190,7 @@ void trig_SM_process()
                         break;
                     case TRIG_OFF_TIME_SET:
                         
-                        ec = cmdValSec = trig_set_new_off_time(cmdValSec);
+                        ec = trig_set_new_off_time(cmdValSec);
                         ui_log_type = LOG_TRIG_OFF_TIME;
                         break;
                     case TRIG_OFF_TIME_SHIFT_SET:
