@@ -5,10 +5,10 @@
 
 #define NB_FLASHS 3
 #define FLASH_ON_START_US 800
+#define TRIG_OFF_MIN 4 //Otherwise alarm is set at a time already passed : Never executed
 #define TRIG_PERIOD_START_US (1000000 / 8)
 #define TRIG_ON_MIN_US(cameraMinExpTime) (cameraMinExpTime + 1) //+1 for safety
 #define CORRECTION_US 3                                         // Correction for jitter
-
 //<-tFlashOn->            <-tFlashOn->          <-tFlashOn->
 //<-----tFlashPeriod----><-----tFlashPeriod---->
 //____________           ____________           ____________                               ____
@@ -66,7 +66,7 @@ int trig_set_minimal_exposure_time(int expoTime)
 // Return -1 on illegal value
 int trig_set_new_off_time(int newtOff)
 {
-    if (newtOff < 0)
+    if (newtOff < TRIG_OFF_MIN)
         return -1;
 
     tTrigOff = newtOff;
@@ -78,13 +78,16 @@ int trig_set_new_on_time(int newtOn)
 {
     // On time has a minimum possible value
     if (newtOn < tTrigMinExpTime)
-        newtOn = tTrigMinExpTime;
+        return -1;
 
     int diffTime = newtOn - tTrigOn;
 
-    tTrigOn = newtOn;
+    int ec = trig_set_new_off_time(tTrigOff - diffTime); // Keep the period
+    if( ec < 0)
+        return -1;
 
-    return trig_set_new_off_time(tTrigOff - diffTime); // Keep the period
+    tTrigOn = newtOn;
+    return 0;
 }
 
 // Three flashs is 3 ON + 2 OFF
@@ -116,6 +119,8 @@ int flashs_set_new_on_time(int newtOn)
 int flashs_and_trig_update(int newtOffLed, int newtOnLed)
 {
     int ec;
+    int prevtOffLed = flashTimes[0][0];
+    int prevtOnLed = flashTimes[0][1];
     ec = flashs_set_new_off_time(newtOffLed);
     if (ec < 0)
         return -1;
@@ -123,8 +128,15 @@ int flashs_and_trig_update(int newtOffLed, int newtOnLed)
     if (ec < 0)
         return -1;
     int totalFlashDuration = get_total_flash_duration();
+    ec = trig_set_new_on_time(totalFlashDuration + CORRECTION_US); // Jitter is compensated by this correction
+    //if error, set the previous ones
+    if(ec < 0){
+        //No possible error on these two functions because use previous good values
+        flashs_set_new_off_time(prevtOffLed);
+        flashs_set_new_on_time(prevtOnLed);
+        return -1;
+    }
     // printf("%d\n", totalFlashDuration);
-    trig_set_new_on_time(totalFlashDuration + CORRECTION_US); // Jitter is compensated by this correction
     return 0;
 }
 
@@ -165,43 +177,44 @@ void trig_SM_process()
 
             if (trigCmd != TRIG_NONE)
             { // Handle command
-                mutex_enter_blocking(&mutexCmd);
-                cmdValSec = cmdVal;
-                mutex_exit(&mutexCmd);
-                switch (trigCmd)
-                {
-                case TRIG_ENABLE:
-                    tTrigEnabled = cmdValSec == 1;
-                    ec = 0;
-                    ui_log_type = LOG_TRIG_ENABLE;
-                    break;
-                case TRIG_OFF_TIME_SET:
-                    ec = trig_set_new_off_time(cmdValSec);
-                    ui_log_type = LOG_TRIG_OFF_TIME;
-                    break;
-                case TRIG_OFF_TIME_SHIFT_SET:
-                    isTrigOffTmpUsed = true;
-                    tTrigOffSave = tTrigOff;
-                    ec = trig_set_new_off_time(tTrigOff + cmdValSec);
-                    ui_log_type = LOG_TRIG_OFF_TIME_SHIFT;
-                    break;
-                case TRIG_EXPO_SET:
-                    ec = trig_set_minimal_exposure_time(cmdValSec);
-                    ui_log_type = LOG_TRIG_EXPO;
-                    break;
-                default:
-                    break;
-                }
-                mutex_enter_blocking(&mutexCmd);
-                trigCmd = TRIG_NONE; // Only for one action
-                mutex_exit(&mutexCmd);
-                if (ec == 0)
-                {
-                    ui_enqueue_data_print((void *)&cmdValSec, ui_log_type);
-                }
-                if (ec == -1)
-                {
-                    ui_enqueue_data_print((void *)messErrorModTrig, LOG_STRING);
+                bool mutexOwn = mutex_try_enter(&mutexCmd, NULL);
+                if(mutexOwn){
+                    cmdValSec = cmdVal;
+                    switch (trigCmd)
+                    {
+                    case TRIG_ENABLE:
+                        tTrigEnabled = cmdValSec == 1;
+                        ec = 0;
+                        ui_log_type = LOG_TRIG_ENABLE;
+                        break;
+                    case TRIG_OFF_TIME_SET:
+                        
+                        ec = cmdValSec = trig_set_new_off_time(cmdValSec);
+                        ui_log_type = LOG_TRIG_OFF_TIME;
+                        break;
+                    case TRIG_OFF_TIME_SHIFT_SET:
+                        isTrigOffTmpUsed = true;
+                        tTrigOffSave = tTrigOff;
+                        ec = trig_set_new_off_time(tTrigOff + cmdValSec);
+                        ui_log_type = LOG_TRIG_OFF_TIME_SHIFT;
+                        break;
+                    case TRIG_EXPO_SET:
+                        ec = trig_set_minimal_exposure_time(cmdValSec);
+                        ui_log_type = LOG_TRIG_EXPO;
+                        break;
+                    default:
+                        break;
+                    }
+                    trigCmd = TRIG_NONE; // Only for one action
+                    mutex_exit(&mutexCmd);
+                    if (ec == 0)
+                    {
+                        ui_enqueue_data_print((void *)&cmdValSec, ui_log_type);
+                    }
+                    if (ec == -1)
+                    {
+                        ui_enqueue_data_print((void *)messErrorModTrig, LOG_STRING);
+                    }
                 }
             }
 
@@ -209,32 +222,31 @@ void trig_SM_process()
             //<!> Otherwise, total flashs duration will be different than trigger.
             if (flashCmd != FLASH_NONE)
             {
-                mutex_enter_blocking(&mutexCmd);
-                cmdValSec = cmdVal;
-                mutex_exit(&mutexCmd);
-                ec = 0xff;
-                switch (flashCmd)
-                {
-                case FLASH_ON_TIME_SET:
-                    ec = flashs_and_trig_update(flashTimes[0][0], cmdValSec); // For the moment, all flashs have same period
-                    ui_log_type = LOG_FLASH_ON_TIME;
-                    break;
-                case FLASH_OFF_TIME_SET:
-                    ec = flashs_and_trig_update(cmdValSec, flashTimes[0][1]); // For the moment, all flashs have same period
-                    ui_log_type = LOG_FLASH_OFF_TIME;
-                    break;
-                default:
-                    break;
+                bool mutexOwn = mutex_try_enter(&mutexCmd, NULL);
+                if(mutexOwn){
+                    cmdValSec = cmdVal;
+                    ec = 0xff;
+                    switch (flashCmd)
+                    {
+                    case FLASH_ON_TIME_SET:
+                        ec = flashs_and_trig_update(flashTimes[0][0], cmdValSec); // For the moment, all flashs have same period
+                        ui_log_type = LOG_FLASH_ON_TIME;
+                        break;
+                    case FLASH_OFF_TIME_SET:
+                        ec = flashs_and_trig_update(cmdValSec, flashTimes[0][1]); // For the moment, all flashs have same period
+                        ui_log_type = LOG_FLASH_OFF_TIME;
+                        break;
+                    default:
+                        break;
+                    }
+                    flashCmd = FLASH_NONE; // Only for one action
+                    mutex_exit(&mutexCmd);
+
+                    if (ec == 0)
+                        ui_enqueue_data_print((void *)&cmdValSec, ui_log_type);
+                    else if (ec == -1)
+                        ui_enqueue_data_print((void *)messErrorModFlash, LOG_STRING);
                 }
-
-                if (ec == 0)
-                    ui_enqueue_data_print((void *)&cmdValSec, ui_log_type);
-                else if (ec == -1)
-                    ui_enqueue_data_print((void *)messErrorModFlash, LOG_STRING);
-
-                mutex_enter_blocking(&mutexCmd);
-                flashCmd = FLASH_NONE; // Only for one action
-                mutex_exit(&mutexCmd);
             }
         }
 
