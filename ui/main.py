@@ -8,52 +8,42 @@ import threading
 from PyQt6.QtCore import pyqtSignal, QObject
 
 
-class SerialReader(QObject):
-    data_received = pyqtSignal(str)
-
-    def __init__(self, serial_obj):
+class SerialLogger(QWidget):
+    def __init__(self, ser):
         super().__init__()
-        self.serial = serial_obj
-        threading.Thread(target=self.read_data, daemon=True).start()
-
-    def read_data(self):
-        while 1:
-            data = self.serial.readline().decode('utf-8').strip()
-            self.data_received.emit(data)
-
-class SerialMonitor(QWidget):
-    def __init__(self, serial_obj):
-        super().__init__()
-        self.serial_reader = SerialReader(serial_obj)
         self.initUI()
+        self.ser = ser
+        threading.Thread(target=self.read_data, daemon=True).start()
 
     def initUI(self):
         # Create main layout
-        main_layout = QVBoxLayout()
+        widget_layout = QVBoxLayout()
 
         # Create a text edit widget for displaying received data
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
-        main_layout.addWidget(self.text_edit)
+        widget_layout.addWidget(self.text_edit)
 
         # Set the main layout
-        self.setLayout(main_layout)
+        self.setLayout(widget_layout)
 
         # Set window properties
         self.setWindowTitle('Serial Monitor')
         self.setGeometry(100, 100, 600, 400)
 
-        self.serial_reader.data_received.connect(self.display_data)
-
     def display_data(self, data):
         self.text_edit.append(data)
-        self.text_edit.moveCursor(QTextCursor.End)  # Ensure the cursor is at the end
+        #self.text_edit.moveCursor(QTextCursor.End)  # Ensure the cursor is at the end
         self.text_edit.ensureCursorVisible()  # Scrol
-        print("coucou")
+
+    def read_data(self):
+        while 1:
+            data = self.ser.readline().decode('utf-8').strip()
+            self.display_data(data)
 
 class Flasher():
-    def __init__(self, uart_dev, baudrate):
-        self.ser = serial.Serial(uart_dev, baudrate)
+    def __init__(self, ser):
+        self.ser = ser
 
     def _send_cmd(self, cmd):
         for c in cmd:
@@ -127,12 +117,13 @@ class CommandWidget(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, ser):
         super().__init__()
+        self.flasher = Flasher(ser)
+        self.serial_logger = SerialLogger(ser)
+
         self.setWindowTitle("UI Flasher")
         self.setGeometry(400, 400, 400, 400)
-
-        layout = QVBoxLayout()
 
         self.on_button = QPushButton("On", self)
         self.on_button.setGeometry(200, 150, 100, 40)
@@ -146,13 +137,14 @@ class MainWindow(QMainWindow):
         self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 100)
         self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_shift_cb, 0, 200, 19)
 
+        layout = QVBoxLayout()
         layout.addWidget(self.on_button, alignment= Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.trig_off_widget)
         layout.addWidget(self.flash_off_widget)
         layout.addWidget(self.flash_on_widget)
         layout.addWidget(self.trig_shift_widget)
         layout.addWidget(self.trig_expo_widget)
-        layout.addWidget(SerialMonitor(flasher.ser))
+        layout.addWidget(self.serial_logger)
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -160,25 +152,25 @@ class MainWindow(QMainWindow):
     
     def on_button_clicked(self):
         if self.on_button.isChecked():
-            flasher.on()
+            self.flasher.on()
             self.on_button.setText("Off")
         else:
-            flasher.off()
+            self.flasher.off()
             self.on_button.setText("On")
     def trig_off_widget_cb(self, value):
-        flasher.trig_off(value)
+        self.flasher.trig_off(value)
         print(value)
     def flash_off_widget_cb(self, value):
-        flasher.flash_off(value)
+        self.flasher.flash_off(value)
         print(value)
     def flash_on_widget_cb(self, value):
-        flasher.flash_on(value)
+        self.flasher.flash_on(value)
         print(value)
     def trig_shift_cb(self, value):
-        flasher.trig_shift(value)
+        self.flasher.trig_shift(value)
         print(value)
     def trig_expo_cb(self, value):
-        flasher.trig_expo(value)
+        self.flasher.trig_expo(value)
         print(value)
         
 
@@ -191,11 +183,11 @@ if __name__ == "__main__":
     if not os.path.exists(filename):
         print("File doesn't exist")
         exit(0)
-
-    flasher = Flasher(filename, 115200)
+    
+    ser = serial.Serial(filename, 115200)
     app = QApplication(sys.argv)
-
-    window = MainWindow()
+    
+    window = MainWindow(ser)
     window.show()
 
     sys.exit(app.exec())
