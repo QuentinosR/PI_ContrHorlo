@@ -1,8 +1,55 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox, QComboBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox, QComboBox, QTextEdit
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QTextCursor
 import serial
 import os
+import threading
+from PyQt6.QtCore import pyqtSignal, QObject
+
+
+class SerialReader(QObject):
+    data_received = pyqtSignal(str)
+
+    def __init__(self, serial_obj):
+        super().__init__()
+        self.serial = serial_obj
+        threading.Thread(target=self.read_data, daemon=True).start()
+
+    def read_data(self):
+        while 1:
+            data = self.serial.readline().decode('utf-8').strip()
+            self.data_received.emit(data)
+
+class SerialMonitor(QWidget):
+    def __init__(self, serial_obj):
+        super().__init__()
+        self.serial_reader = SerialReader(serial_obj)
+        self.initUI()
+
+    def initUI(self):
+        # Create main layout
+        main_layout = QVBoxLayout()
+
+        # Create a text edit widget for displaying received data
+        self.text_edit = QTextEdit()
+        self.text_edit.setReadOnly(True)
+        main_layout.addWidget(self.text_edit)
+
+        # Set the main layout
+        self.setLayout(main_layout)
+
+        # Set window properties
+        self.setWindowTitle('Serial Monitor')
+        self.setGeometry(100, 100, 600, 400)
+
+        self.serial_reader.data_received.connect(self.display_data)
+
+    def display_data(self, data):
+        self.text_edit.append(data)
+        self.text_edit.moveCursor(QTextCursor.End)  # Ensure the cursor is at the end
+        self.text_edit.ensureCursorVisible()  # Scrol
+        print("coucou")
 
 class Flasher():
     def __init__(self, uart_dev, baudrate):
@@ -105,6 +152,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.flash_on_widget)
         layout.addWidget(self.trig_shift_widget)
         layout.addWidget(self.trig_expo_widget)
+        layout.addWidget(SerialMonitor(flasher.ser))
 
         widget = QWidget()
         widget.setLayout(layout)
