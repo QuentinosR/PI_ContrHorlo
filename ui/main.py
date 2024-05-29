@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("UI Flasher")
         self.setGeometry(400, 400, 400, 400)
 
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
 
         self.on_button = QPushButton("On", self)
         self.on_button.setGeometry(200, 150, 100, 40)
