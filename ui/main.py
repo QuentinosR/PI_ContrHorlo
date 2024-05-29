@@ -1,19 +1,20 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox, QComboBox, QTextEdit
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLineEdit, QGroupBox, QTextEdit
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QTextCursor
 import serial
 import os
 import threading
-from PyQt6.QtCore import pyqtSignal, QObject
-
+from PyQt6.QtCore import pyqtSignal
 
 class SerialLogger(QWidget):
+    sig_recv = pyqtSignal(str)
     def __init__(self, ser):
         super().__init__()
-        self.initUI()
         self.ser = ser
+        self.sig_recv.connect(self.display_data)
         threading.Thread(target=self.read_data, daemon=True).start()
+
+        self.initUI()
 
     def initUI(self):
         # Create main layout
@@ -32,14 +33,18 @@ class SerialLogger(QWidget):
         self.setGeometry(100, 100, 600, 400)
 
     def display_data(self, data):
+        #current_text = self.text_edit.toPlainText()
+        #new_text = current_text + data
+        # Keep only the last 100 characters
+        #truncated_text = new_text[-500:]
+        #self.text_edit.setPlainText(truncated_text)
         self.text_edit.append(data)
-        #self.text_edit.moveCursor(QTextCursor.End)  # Ensure the cursor is at the end
-        self.text_edit.ensureCursorVisible()  # Scrol
+        self.text_edit.ensureCursorVisible()  # Scroll
 
     def read_data(self):
         while 1:
             data = self.ser.readline().decode('utf-8').strip()
-            self.display_data(data)
+            self.sig_recv.emit(data)
 
 class Flasher():
     def __init__(self, ser):
@@ -137,17 +142,23 @@ class MainWindow(QMainWindow):
         self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 100)
         self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_shift_cb, 0, 200, 19)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.on_button, alignment= Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.trig_off_widget)
-        layout.addWidget(self.flash_off_widget)
-        layout.addWidget(self.flash_on_widget)
-        layout.addWidget(self.trig_shift_widget)
-        layout.addWidget(self.trig_expo_widget)
-        layout.addWidget(self.serial_logger)
+        layout_cmd = QVBoxLayout()
+        layout_cmd.addWidget(self.on_button, alignment= Qt.AlignmentFlag.AlignCenter)
+        layout_cmd.addWidget(self.trig_off_widget)
+        layout_cmd.addWidget(self.flash_off_widget)
+        layout_cmd.addWidget(self.flash_on_widget)
+        layout_cmd.addWidget(self.trig_shift_widget)
+        layout_cmd.addWidget(self.trig_expo_widget)
+
+        layout_log = QVBoxLayout()
+        layout_log.addWidget(self.serial_logger)
+
+        layout_app = QHBoxLayout()
+        layout_app.addLayout(layout_cmd)
+        layout_app.addLayout(layout_log)
 
         widget = QWidget()
-        widget.setLayout(layout)
+        widget.setLayout(layout_app)
         self.setCentralWidget(widget)
     
     def on_button_clicked(self):
