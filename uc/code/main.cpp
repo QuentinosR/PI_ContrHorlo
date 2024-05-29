@@ -261,7 +261,7 @@ void trig_SM_process()
         {
             isTrigOffTmpUsed = false;
             trig_set_new_off_time(tTrigOffSave); // Put the previous duration.
-            ui_enqueue_data_print((void *)&tTrigOffSave, LOG_TRIG_OFF_TIME_SHIFT);
+            //ui_enqueue_data_print((void *)&tTrigOffSave, LOG_TRIG_OFF_TIME_SHIFT);
         }
     }
 }

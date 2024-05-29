@@ -22,6 +22,8 @@ class Flasher():
         self._send_cmd("trig.en:0;") 
     def trig_off(self, val):
         self._send_cmd("trig.off:" + str(val) +";")
+    def trig_expo(self, val):
+        self._send_cmd("trig.expo:" + str(val) +";")
     def trig_shift(self, val):
         self._send_cmd("trig.shift:" + str(val) +";")
     def flash_on(self, val):
@@ -32,105 +34,50 @@ class Flasher():
 
 flasher = Flasher('/dev/ttyACM0', 115200)
 
-class OneTimeEvent(QWidget):
-    def __init__(self, text, cb_parent_click):
-        super(OneTimeEvent, self).__init__()
-        self.text_val = text
-        self.parent_cb = cb_parent_click
-
-        self.setMaximumHeight(100)
-    
-        self.text = QLabel("", self)
-        self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.field = QLineEdit()
-        self.field.setFixedWidth(75)
-
-        self.button = QPushButton('Send one time')
-        self.button.clicked.connect(self.cb_button) 
-        self.update_text("0")
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.button)
-        self.setLayout(layout)
-
-    def update_text(self, new_val):
-        self.text.setText(self.text_val + ": " + str(new_val))
-
-    def cb_button(self):
-        val = self.field.text()
-        self.update_text(val)
-        self.parent_cb(val)
-
-class ExposureTime(QWidget):
-    def __init__(self, text, cb_parent_click):
-        super(OneTimeEvent, self).__init__()
-        self.text_val = text
-        self.parent_cb = cb_parent_click
-
-        self.setMaximumHeight(100)
-    
-        self.text = QLabel("", self)
-        self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.field = QLineEdit()
-        self.field.setFixedWidth(75)
-
-        self.button = QPushButton('Send one time')
-        self.button.clicked.connect(self.cb_button) 
-        self.update_text("0")
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.button)
-        self.setLayout(layout)
-
-    def update_text(self, new_val):
-        self.text.setText(self.text_val + ": " + str(new_val))
-
-    def cb_button(self):
-        val = self.field.text()
-        self.update_text(val)
-        self.parent_cb(val)
-
-class Slider(QWidget):
+class CommandWidget(QWidget):
 
     def __init__(self, text, cb_parent_val_changed, min, max, default):
-        super(Slider, self).__init__()
+        super(CommandWidget, self).__init__()
         self.text_val = text
         self.parent_cb = cb_parent_val_changed
 
-        self.setMaximumHeight(100)
+        self.setMaximumHeight(150)
         
         self.sl = QSlider(Qt.Orientation.Horizontal, self)
         self.sl.setRange(min, max)
         self.sl.setValue(default)
         self.sl.setSingleStep(150)
-        self.sl.valueChanged.connect(self.cb)
+        self.sl.valueChanged.connect(self.update_val)
 
         self.text = QLabel("", self)
         self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.cb(default)
+        self.text.setText(self.text_val)
 
         self.field = QLineEdit()
         self.field.setFixedWidth(75)
-        self.field.textChanged.connect(self.cb)
+        self.field.textChanged.connect(self.update_val)
+
+        self.button = QPushButton('Send')
+        self.button.clicked.connect(self.cb_button)
+        self.button.setMaximumWidth(50)
+
+        self.update_val(default)
 
         layout = QVBoxLayout()
         layout.addWidget(self.text)
         layout.addWidget(self.sl)
         layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.button, alignment= Qt.AlignmentFlag.AlignCenter)
         self.setLayout(layout)
 
-    def update_text(self, new_val):
-        self.text.setText(self.text_val + ": " + str(new_val))
+    def update_val(self, new_val):
+        self.val = int(new_val)
+        self.sl.setValue(int(new_val))
+        self.field.setText(str(new_val))
 
-    def cb(self, val):
-        self.update_text(val)
-        self.parent_cb(val)
+    def cb_button(self):
+        self.parent_cb(self.val)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -145,16 +92,18 @@ class MainWindow(QMainWindow):
         self.on_button.setCheckable(True)
         self.on_button.clicked.connect(self.on_button_clicked)
 
-        self.trig_off_sl = Slider('Trig off time (us)', self.trig_off_sl_changed, 1000, 1000000, 20000)
-        self.flash_off_sl = Slider('Flash off time (us)', self.flash_off_sl_changed, 1, 100000, 500)
-        self.flash_on_sl = Slider('Flash on time (us)', self.flash_on_sl_changed, 1, 100000, 2000)
-        self.trig_shift_ote = OneTimeEvent('Trig shift time (us)', self.trig_shift_changed)
+        self.trig_off_widget = CommandWidget('Trig off time (us)', self.trig_off_widget_cb, 1000, 1000000, 20000)
+        self.flash_off_widget = CommandWidget('Flash off time (us)', self.flash_off_widget_cb, 1, 100000, 500)
+        self.flash_on_widget = CommandWidget('Flash on time (us)', self.flash_on_widget_cb, 1, 100000, 2000)
+        self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 100)
+        self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_shift_cb, 0, 200, 19)
 
         layout.addWidget(self.on_button)
-        layout.addWidget(self.trig_off_sl)
-        layout.addWidget(self.flash_off_sl)
-        layout.addWidget(self.flash_on_sl)
-        layout.addWidget(self.trig_shift_ote)
+        layout.addWidget(self.trig_off_widget)
+        layout.addWidget(self.flash_off_widget)
+        layout.addWidget(self.flash_on_widget)
+        layout.addWidget(self.trig_shift_widget)
+        layout.addWidget(self.trig_expo_widget)
 
         widget = QWidget()
         widget.setLayout(layout)
@@ -167,17 +116,20 @@ class MainWindow(QMainWindow):
         else:
             flasher.off()
             self.on_button.setText("On")
-    def trig_off_sl_changed(self, value):
+    def trig_off_widget_cb(self, value):
         flasher.trig_off(value)
         print(value)
-    def flash_off_sl_changed(self, value):
+    def flash_off_widget_cb(self, value):
         flasher.flash_off(value)
         print(value)
-    def flash_on_sl_changed(self, value):
+    def flash_on_widget_cb(self, value):
         flasher.flash_on(value)
         print(value)
-    def trig_shift_changed(self, value):
+    def trig_shift_cb(self, value):
         flasher.trig_shift(value)
+        print(value)
+    def trig_expo_cb(self, value):
+        flasher.trig_expo(value)
         print(value)
         
 
