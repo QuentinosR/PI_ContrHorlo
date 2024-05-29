@@ -1,8 +1,8 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox, QComboBox
 from PyQt6.QtCore import Qt
 import serial
+import os
 
 class Flasher():
     def __init__(self, uart_dev, baudrate):
@@ -32,7 +32,7 @@ class Flasher():
         self._send_cmd("flash.off:" + str(val) +";")
 
 
-flasher = Flasher('/dev/ttyACM0', 115200)
+flasher = None
 
 class CommandWidget(QWidget):
 
@@ -134,7 +134,17 @@ class MainWindow(QMainWindow):
         print(value)
         
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Please use : " + sys.argv[0] + " " + "[FILENAME]")
+        exit(0)
+
+    filename = sys.argv[1]
+    if not os.path.exists(filename):
+        print("File doesn't exist")
+        exit(0)
+
+    flasher = Flasher(filename, 115200)
     app = QApplication(sys.argv)
 
     window = MainWindow()
