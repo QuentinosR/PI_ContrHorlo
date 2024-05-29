@@ -1,5 +1,5 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLineEdit, QGroupBox, QTextEdit
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLineEdit, QGroupBox, QTextEdit, QLabel
 from PyQt6.QtCore import Qt
 import serial
 import os
@@ -17,20 +17,15 @@ class SerialLogger(QWidget):
         self.initUI()
 
     def initUI(self):
-        # Create main layout
         widget_layout = QVBoxLayout()
-
-        # Create a text edit widget for displaying received data
+        self.title = QLabel("UART logs")
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
+        self.text_edit.setMinimumWidth(300)
+        widget_layout.addWidget(self.title)
         widget_layout.addWidget(self.text_edit)
 
-        # Set the main layout
         self.setLayout(widget_layout)
-
-        # Set window properties
-        self.setWindowTitle('Serial Monitor')
-        self.setGeometry(100, 100, 600, 400)
 
     def display_data(self, data):
         #current_text = self.text_edit.toPlainText()
@@ -89,6 +84,7 @@ class CommandWidget(QWidget):
         self.sl.setRange(min, max)
         self.sl.setValue(default)
         self.sl.setSingleStep(150)
+        self.sl.setMinimumWidth(400)
         self.sl.valueChanged.connect(self.update_val)
 
         self.field = QLineEdit()
@@ -128,7 +124,7 @@ class MainWindow(QMainWindow):
         self.serial_logger = SerialLogger(ser)
 
         self.setWindowTitle("UI Flasher")
-        self.setGeometry(400, 400, 400, 400)
+        self.setGeometry(600, 600, 600, 600)
 
         self.on_button = QPushButton("On", self)
         self.on_button.setGeometry(200, 150, 100, 40)
