@@ -8,7 +8,7 @@
 #define TRIG_OFF_MIN 4 //Otherwise alarm is set at a time already passed : Never executed
 #define TRIG_PERIOD_START_US (1000000 / 8)
 #define TRIG_ON_MIN_US(cameraMinExpTime) (cameraMinExpTime + 1) //+1 for safety
-#define CORRECTION_US 3                                         // Correction for jitter
+#define CORRECTION_US 2                                         // Correction for jitter
 //<-tFlashOn->            <-tFlashOn->          <-tFlashOn->
 //<-----tFlashPeriod----><-----tFlashPeriod---->
 //____________           ____________           ____________                               ____
@@ -286,10 +286,11 @@ void flash_SM_process()
 
         int stateInt = currFlashState ? 1 : 0;
 
-        // The last flash, has a off time of 0. So alarm setting function will automatically return.
-        alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
         if (tTrigEnabled)
             gpio_put(LED_PIN, currFlashState);
+
+        // The last flash, has a off time of 0. So alarm setting function will automatically return. no callback will be called
+        alarm_in_US(ALARM_FLASH_NUM, ALARM_FLASH_IRQ, timer_flash_callback, timerHwFlashVal, flashTimes[iCurrFlash][stateInt]);
     }
 }
 
