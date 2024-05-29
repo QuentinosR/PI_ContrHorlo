@@ -1,5 +1,5 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit
+from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel, QLineEdit, QGroupBox
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import Qt
 import serial
@@ -49,10 +49,6 @@ class CommandWidget(QWidget):
         self.sl.setSingleStep(150)
         self.sl.valueChanged.connect(self.update_val)
 
-        self.text = QLabel("", self)
-        self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.text.setText(self.text_val)
-
         self.field = QLineEdit()
         self.field.setFixedWidth(75)
         self.field.textChanged.connect(self.update_val)
@@ -61,14 +57,18 @@ class CommandWidget(QWidget):
         self.button.clicked.connect(self.cb_button)
         self.button.setMaximumWidth(50)
 
-        self.update_val(default)
+        self.gb = QGroupBox(self.text_val)
+        self.gb_layout = QVBoxLayout()
+        self.gb_layout.addWidget(self.sl)
+        self.gb_layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
+        self.gb_layout.addWidget(self.button, alignment= Qt.AlignmentFlag.AlignCenter)
+        self.gb.setLayout(self.gb_layout)
+        
+        widget_layout = QVBoxLayout()
+        widget_layout.addWidget(self.gb) 
+        self.setLayout(widget_layout)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.text)
-        layout.addWidget(self.sl)
-        layout.addWidget(self.field, alignment= Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.button, alignment= Qt.AlignmentFlag.AlignCenter)
-        self.setLayout(layout)
+        self.update_val(default)
 
     def update_val(self, new_val):
         self.val = int(new_val)
@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
         self.on_button = QPushButton("On", self)
         self.on_button.setGeometry(200, 150, 100, 40)
         self.on_button.setCheckable(True)
+        self.on_button.setMaximumWidth(50)
         self.on_button.clicked.connect(self.on_button_clicked)
 
         self.trig_off_widget = CommandWidget('Trig off time (us)', self.trig_off_widget_cb, 1000, 1000000, 20000)
@@ -98,7 +99,7 @@ class MainWindow(QMainWindow):
         self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 100)
         self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_shift_cb, 0, 200, 19)
 
-        layout.addWidget(self.on_button)
+        layout.addWidget(self.on_button, alignment= Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.trig_off_widget)
         layout.addWidget(self.flash_off_widget)
         layout.addWidget(self.flash_on_widget)
