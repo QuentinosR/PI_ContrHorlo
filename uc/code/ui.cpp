@@ -22,12 +22,12 @@ int cmdBuffSize = 0;
 
 void cmd_handle(char c){
     cmdBuff[cmdBuffSize++] = c;
-    printf("%d\n", c);
+    //printf("%d\n", c);
     if(c != ';')
         return;
     
     cmdBuff[cmdBuffSize] = '\0';
-    printf("[CMD] new cmd : %s\n", cmdBuff);
+    //printf("[CMD] new cmd : %s\n", cmdBuff);
 
     char *components[4]; // Array to hold the parsed components
     int index = 0;
@@ -62,11 +62,11 @@ void cmd_handle(char c){
     if(strcmp(components[0], "flash") == 0){
 
         if(strcmp(components[1], "on") == 0){
-            printf("[CMD] set flash on\n");
+            //printf("[CMD] set flash on\n");
             flashCmd = FLASH_ON_TIME_SET;
 
         }else if(strcmp(components[1], "off") == 0){
-            printf("[CMD] set flash off\n");
+            //printf("[CMD] set flash off\n");
             flashCmd = FLASH_OFF_TIME_SET;
         }
 
@@ -75,17 +75,17 @@ void cmd_handle(char c){
         if(strcmp(components[1], "en") == 0){
             
             trigCmd = TRIG_ENABLE;
-            printf("[CMD] set trig enable\n");
+            //printf("[CMD] set trig enable\n");
         }
         else if(strcmp(components[1], "off") == 0){
-            printf("[CMD] set trig off\n");
+            //printf("[CMD] set trig off\n");
             trigCmd = TRIG_OFF_TIME_SET;
 
         } else if(strcmp(components[1], "shift") == 0){
-            printf("[CMD] set trig shift\n");
+            //printf("[CMD] set trig shift\n");
             trigCmd = TRIG_OFF_TIME_SHIFT_SET;
         }else if(strcmp(components[1], "expo") == 0){
-            printf("[CMD] set trig minimal exposure time\n");
+            //printf("[CMD] set trig minimal exposure time\n");
             trigCmd = TRIG_EXPO_SET;
         }
     }

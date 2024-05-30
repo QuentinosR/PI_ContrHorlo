@@ -5,6 +5,7 @@ import serial
 import os
 import threading
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QIcon
 
 class SerialLogger(QWidget):
     sig_recv = pyqtSignal(str)
@@ -107,6 +108,7 @@ class CommandWidget(QWidget):
         self.setLayout(widget_layout)
 
         self.update_val(default)
+        self.cb_button()
 
     def update_val(self, new_val):
         self.val = int(new_val)
@@ -125,12 +127,16 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("UI Flasher")
         self.setGeometry(600, 600, 600, 600)
+        self.setWindowIcon(QIcon('ico.svg'))  # Set window icon
 
         self.on_button = QPushButton("On", self)
         self.on_button.setGeometry(200, 150, 100, 40)
         self.on_button.setCheckable(True)
         self.on_button.setMaximumWidth(50)
         self.on_button.clicked.connect(self.on_button_clicked)
+        self.on_button.setChecked(False)
+        self.on_button_clicked()
+        #self.on_button.setChecked(False)
 
         self.trig_off_widget = CommandWidget('Trig off time (us)', self.trig_off_widget_cb, 1000, 1000000, 20000)
         self.flash_off_widget = CommandWidget('Flash off time (us)', self.flash_off_widget_cb, 1, 100000, 500)
@@ -166,20 +172,14 @@ class MainWindow(QMainWindow):
             self.on_button.setText("On")
     def trig_off_widget_cb(self, value):
         self.flasher.trig_off(value)
-        print(value)
     def flash_off_widget_cb(self, value):
         self.flasher.flash_off(value)
-        print(value)
     def flash_on_widget_cb(self, value):
         self.flasher.flash_on(value)
-        print(value)
     def trig_shift_cb(self, value):
         self.flasher.trig_shift(value)
-        print(value)
     def trig_expo_cb(self, value):
         self.flasher.trig_expo(value)
-        print(value)
-        
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
