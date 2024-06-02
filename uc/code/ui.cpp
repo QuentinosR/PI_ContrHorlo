@@ -131,7 +131,6 @@ void ui_task(){
     init_uart_interrupt(cmd_handle);
 
     queue_ui_in_entry_t entry;
-    printf("Hello form core 1\n");
     
     while(1){
         queue_remove_blocking(&queue_ui_in, &entry);

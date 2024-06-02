@@ -6,6 +6,7 @@ import os
 import threading
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QIcon
+import time
 
 class SerialLogger(QWidget):
     sig_recv = pyqtSignal(str)
@@ -29,18 +30,16 @@ class SerialLogger(QWidget):
         self.setLayout(widget_layout)
 
     def display_data(self, data):
-        #current_text = self.text_edit.toPlainText()
-        #new_text = current_text + data
-        # Keep only the last 100 characters
-        #truncated_text = new_text[-500:]
-        #self.text_edit.setPlainText(truncated_text)
         self.text_edit.append(data)
         self.text_edit.ensureCursorVisible()  # Scroll
 
     def read_data(self):
         while 1:
-            data = self.ser.readline().decode('utf-8').strip()
-            self.sig_recv.emit(data)
+            try:
+                data = self.ser.readline().decode('utf-8').strip()
+                self.sig_recv.emit(data)
+            except:
+                print("Impossible to read, maybe device reading already opened.")
 
 class Flasher():
     def __init__(self, ser):
@@ -51,6 +50,7 @@ class Flasher():
             self.ser.write(c.encode())
 
         self.ser.write(";".encode())
+        time.sleep(0.2)
 
         #s = self.ser.read(120)
         #return s.decode()
@@ -108,11 +108,14 @@ class CommandWidget(QWidget):
         self.setLayout(widget_layout)
 
         self.update_val(default)
-        self.cb_button()
 
     def update_val(self, new_val):
-        self.val = int(new_val)
-        self.sl.setValue(int(new_val))
+        try :
+            self.val = int(new_val)
+            self.sl.setValue(int(new_val))
+        except:
+            pass
+        
         self.field.setText(str(new_val))
 
     def cb_button(self):
@@ -138,11 +141,17 @@ class MainWindow(QMainWindow):
         self.on_button_clicked()
         #self.on_button.setChecked(False)
 
-        self.trig_off_widget = CommandWidget('Trig off time (us)', self.trig_off_widget_cb, 1000, 1000000, 20000)
-        self.flash_off_widget = CommandWidget('Flash off time (us)', self.flash_off_widget_cb, 1, 100000, 500)
-        self.flash_on_widget = CommandWidget('Flash on time (us)', self.flash_on_widget_cb, 1, 100000, 2000)
-        self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 100)
-        self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_shift_cb, 0, 200, 19)
+        self.trig_expo_widget = CommandWidget('Minimal exposure time (us)', self.trig_expo_cb, 0, 200, 19)
+        self.trig_off_widget = CommandWidget('Trig off time (us)', self.trig_off_widget_cb, 1000, 1000000, 92000)
+        self.flash_off_widget = CommandWidget('Flash off time (us)', self.flash_off_widget_cb, 1, 100000, 15000)
+        self.flash_on_widget = CommandWidget('Flash on time (us)', self.flash_on_widget_cb, 1, 100000, 1000)
+        self.trig_shift_widget = CommandWidget('Trig shift time (us)', self.trig_shift_cb, 0, 100000, 1000)
+
+        self.trig_expo_widget.cb_button()
+        self.trig_off_widget.cb_button()
+        self.flash_off_widget.cb_button()
+        self.flash_on_widget.cb_button()
+        self.trig_off_widget.cb_button()
 
         layout_cmd = QVBoxLayout()
         layout_cmd.addWidget(self.on_button, alignment= Qt.AlignmentFlag.AlignCenter)
@@ -183,7 +192,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Please use : " + sys.argv[0] + " " + "[FILENAME]")
+        print("Please use : " + sys.argv[0] + " " + "[DEV_UART]")
         exit(0)
 
     filename = sys.argv[1]
