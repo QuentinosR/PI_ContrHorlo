@@ -55,24 +55,22 @@ void * AcquisitionThread(SV_STREAM_HANDLE context)
             printf("Image Received FrameId:%lld Info Ptr:0x%p Width:%zd Height:%zd\n", bufferInfo.iImageId, bufferInfo.pImagePtr, bufferInfo.iSizeX, bufferInfo.iSizeY);
             printf("----------------------------------------------\n");
             
-            char filename[1024];
-            sprintf(filename, "img/image_%lld.raw", bufferInfo.iImageId);
-
-            FILE *fp = fopen(filename, "wb");
             cv::Mat img(bufferInfo.iSizeY, bufferInfo.iSizeX, CV_8UC1, bufferInfo.pImagePtr);
+
+            cv::Mat new_image = cv::Mat::zeros(img.size(), img.type());
+            double alpha = 1.2; // Contrast (1.0-3.0)
+            int beta = 80; // Brightness (0-100)
+
+            for(int y = 0; y < img.rows; y++) {
+                for(int x = 0; x < img.cols; x++) {
+                    new_image.at<uchar>(y,x) = cv::saturate_cast<uchar>(alpha * img.at<uchar>(y,x) + beta);
+                }
+            }
 
             char filename_png[1024];
             sprintf(filename_png, "img/image_%lld.png", bufferInfo.iImageId);
 
-            cv::imwrite(filename_png, img);
-            
-            printf("test to save\n");
-
-            if(fp)
-            {
-            fwrite(bufferInfo.pImagePtr, bufferInfo.iSizeX * bufferInfo.iSizeY, 1, fp);
-            fclose(fp);
-            }
+            cv::imwrite(filename_png, new_image);
 
             SVStreamQueueBuffer(hDS, hBuffer);
         }
