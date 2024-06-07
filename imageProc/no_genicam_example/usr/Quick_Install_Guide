@@ -1,0 +1,7 @@
+For Gec-Application:
+
+1) change to the Appliation's "usr"-Folder and run [with root]:
+	make install 
+
+2) change to the Application's "console"-Folder and run [without root]:
+	make

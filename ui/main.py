@@ -1,3 +1,4 @@
+# Quentin Rod for PI - MSE Computer Science
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLineEdit, QGroupBox, QTextEdit, QLabel
 from PyQt6.QtCore import Qt

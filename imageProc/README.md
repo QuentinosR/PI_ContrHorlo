@@ -1,3 +1,10 @@
+This project is based on an open source example available on SVS website (SVCamMiniExample).
+It can be used to connect to a camera, configure the camera and acquire images. 
+Open CV is compiled with it for image processing.
+
+# Introduction
+The modified project is available in the folder **code**. **genicam_example** and **no_genicam_example** are software availables on SVS website.
+
 # Installation
 
 ## Install the SDK
@@ -36,8 +43,10 @@ sudo ln -s /usr/include/opencv4/opencv2 /usr/include/opencv2
 2. ```make```
 
 # Run executable
-1. ```./imageProc```
-
+1. Connect the camera to the PC
+2. ```./imageProc```
+The camera is not directly detected, which can take several seconds.
+In order to stop the program do CTRL+C. 
 
 # Configuration
 - Ubuntu 22.04.4 LTS

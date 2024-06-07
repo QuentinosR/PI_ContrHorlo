@@ -1,0 +1,9 @@
+[Unit]
+Description=U3V Startup parameter
+
+[Service]
+Type=simple
+ExecStart=/etc/systemd/svcamkit_u3v_startup.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,9 @@
-# PI ContrHorlo
+Code created on the Raspberry Pi Pico platform. 
+It generates a trigger signal and a series of flashes of light. 
+It can be controlled via UART commands. 
+# Installation
 
-
-## Installation
-
-### Pi Debug
+## Pi Debug
 Download and install the OpenOCD dependencies:
 
 ```bash
@@ -43,9 +43,7 @@ Create a file with any name (ex. pico_openocd.rules) under /etc/udev/rules.d and
 ATTRS{idVendor}=="2e8a", ATTRS{idProduct}=="000c", MODE="660", GROUP="plugdev", TAG+="uaccess"
 ```
 
-
-
-### SDK Config
+## SDK Config
 1. Clone repository https://labinfo.ing.he-arc.ch/gitlab/igib/public/raspberry-pi-pico/raspberry-pi-pico-sdk
 2. Go in the folder and init it:
     ```

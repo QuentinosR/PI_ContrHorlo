@@ -1,3 +1,4 @@
+// Quentin Rod for PI - MSE Computer Science
 #ifndef HW_H
 #define HW_H
 

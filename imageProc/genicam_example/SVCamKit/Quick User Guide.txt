@@ -1,0 +1,24 @@
+1. Uninstall the old sdk:
+if any old sdk e.g SVCam_Kit_v2.5.0_Linux_xxx alerady is installed, change to that Makefile folder
+$sudo make uninstall
+
+2.Install new sdk, unzip it and install it, reboot pc
+$chmod +x setup.sh
+$sudo ./setup.sh -i
+$sudo reboot
+
+3. Network Setting for GigE-Camera: 
+e.g under Ubuntu 18.04, goto "Settings/Network", pick up one interface setting (gear symbol)
+3.1 In "Identity" tab, set MTU to 9000
+3.2 In IPv4 tab,  check the "Link-Local Only"
+
+4. SVCapture 
+change to SVCapture folder, add execute right and run it 
+$chmod +x SVCapture
+$./SVCapture
+ 
+5. SVCamMiniExample
+change to "Makefile_Linux_g++", compile it, and run
+$cd SVCamMiniExample/Makefile_Linux_g++
+$make
+$./SVCamMiniExample
